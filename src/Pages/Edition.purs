@@ -1,4 +1,4 @@
-module Pages.Settings where
+module Pages.Edition where
 
 import Classes as C
 import Halogen.HTML as HH
@@ -7,50 +7,43 @@ import Halogen.Themes.Bootstrap4 as BS
 
 render :: forall w i. HH.HTML w i
 render =
-  HH.div [ HP.class_ C.settingsPage ]
+  HH.div [ HP.class_ C.editorPage ]
     [ HH.div [ HP.classes [ BS.container, C.page ] ]
         [ HH.div [ HP.class_ BS.row ]
-            [ HH.div [ HP.classes [ BS.colMd6, BS.offsetMd3, C.colXs12 ] ]
-                [ HH.h1 [ HP.class_ C.textXsCenter ] [ HH.text "Your Settings" ]
-                , HH.form_
+            [ HH.div [ HP.classes [ BS.colMd10, BS.offsetMd1 ] ]
+                [ HH.form_
                     [ HH.fieldset_
                         [ HH.fieldset [ HP.class_ BS.formGroup ]
                             [ HH.input
-                                [ HP.class_ BS.formControl
+                                [ HP.classes [ BS.formControl, BS.formControlLg ]
                                 , HP.type_ HP.InputText
-                                , HP.placeholder "URL of profile picture"
+                                , HP.placeholder "Article Title"
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
                             [ HH.input
-                                [ HP.classes [ BS.formControl, BS.formControlLg ]
+                                [ HP.class_ BS.formControl
                                 , HP.type_ HP.InputText
-                                , HP.placeholder "Your Name"
+                                , HP.placeholder "What's this article about?"
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
                             [ HH.textarea
-                                [ HP.classes [ BS.formControl, BS.formControlLg ]
-                                , HP.placeholder "Short bio about you"
+                                [ HP.class_ BS.formControl
                                 , HP.rows 8
+                                , HP.placeholder "Write your article (in markdown)"
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
                             [ HH.input
-                                [ HP.classes [ BS.formControl, BS.formControlLg ]
-                                , HP.type_ HP.InputEmail
-                                , HP.placeholder "Email"
+                                [ HP.class_ BS.formControl
+                                , HP.type_ HP.InputText
+                                , HP.placeholder "Enter tags"
                                 ]
-                            ]
-                        , HH.fieldset [ HP.class_ BS.formGroup ]
-                            [ HH.input
-                                [ HP.classes [ BS.formControl, BS.formControlLg ]
-                                , HP.type_ HP.InputPassword
-                                , HP.placeholder "Password"
-                                ]
+                            , HH.div [ HP.class_ C.tagList ] []
                             ]
                         , HH.button [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ] ]
-                            [ HH.text "Update Settings"
+                            [ HH.text "Publish Article"
                             ]
                         ]
                     ]
