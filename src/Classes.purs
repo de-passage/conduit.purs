@@ -61,3 +61,15 @@ tagPill = HH.ClassName "tag-pill"
 
 tagList :: HH.ClassName
 tagList = HH.ClassName "tag-list"
+
+authPage :: HH.ClassName
+authPage = HH.ClassName "auth-page"
+
+textXsCenter :: HH.ClassName
+textXsCenter = HH.ClassName "text-xs-center"
+
+colXs12 :: HH.ClassName
+colXs12 = HH.ClassName "col-xs-12"
+
+errorMessages :: HH.ClassName
+errorMessages = HH.ClassName "error-messages"
