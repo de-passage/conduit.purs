@@ -7,7 +7,10 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago test --main Test.Main"
+    "test": "spago test --main Test.Main",
+    "build": "webpack --config webpack.prod.js",
+    "serve": "webpack-dev-server --config webpack.dev.js --open",
+    "build:dev": "webpack --config webpack.dev.js"
   },
   "repository": {
     "type": "git",
