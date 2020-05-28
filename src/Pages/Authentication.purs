@@ -1,4 +1,4 @@
-module Authentication where
+module Pages.Authentication where
 
 import Classes as C
 import Halogen.HTML as HH

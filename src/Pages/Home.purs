@@ -1,4 +1,4 @@
-module Home where
+module Pages.Home where
 
 import Prelude
 import Classes as C

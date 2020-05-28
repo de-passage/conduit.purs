@@ -18,7 +18,7 @@ render =
                     [ HH.text "Home" ]
                 ]
             , HH.li [ HP.class_ BS.navItem ]
-                [ HH.a [ HP.class_ BS.navLink ]
+                [ HH.a [ HP.class_ BS.navLink, HP.href "" ]
                     [ HH.i [ HP.class_ C.ionCompose ] []
                     , HH.text " NewPost"
                     ]

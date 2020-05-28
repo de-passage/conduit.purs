@@ -73,3 +73,6 @@ colXs12 = HH.ClassName "col-xs-12"
 
 errorMessages :: HH.ClassName
 errorMessages = HH.ClassName "error-messages"
+
+settingsPage :: HH.ClassName 
+settingsPage = HH.ClassName "settings-page"
