@@ -8,7 +8,7 @@ import Halogen.HTML as HH
 import Halogen.VDom.Driver (runUI)
 import Navbar as Navbar
 import Footer as Footer
-import Home as Home
+import Pages.Home as Home
 
 type State
   = Unit
