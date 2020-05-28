@@ -1,0 +1,36 @@
+{
+  "name": "conduit.purs",
+  "version": "1.0.0",
+  "description": "Conduit front-end implementation in Purescript",
+  "private": true,
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "spago test --main Test.Main"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/de-passage/conduit.purs.git"
+  },
+  "keywords": [
+    "purescript",
+    "conduit",
+    "front-end"
+  ],
+  "author": "Sylvain Leclercq",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/de-passage/conduit.purs/issues"
+  },
+  "homepage": "https://github.com/de-passage/conduit.purs#readme",
+  "dependencies": {
+    "purs-loader": "^3.7.1",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-merge": "^4.2.2"
+  },
+  "devDependencies": {
+    "webpack-dev-server": "^3.11.0"
+  }
+}

@@ -6,3 +6,11 @@ node_modules
 # Generated files
 .psci
 output
+
+# Spago
+.spago
+output
+
+node_modules
+
+main.js
