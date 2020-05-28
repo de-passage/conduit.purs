@@ -74,8 +74,50 @@ colXs12 = HH.ClassName "col-xs-12"
 errorMessages :: HH.ClassName
 errorMessages = HH.ClassName "error-messages"
 
-settingsPage :: HH.ClassName 
+settingsPage :: HH.ClassName
 settingsPage = HH.ClassName "settings-page"
 
-editorPage :: HH.ClassName 
+editorPage :: HH.ClassName
 editorPage = HH.ClassName "editor-page"
+
+articlePage :: HH.ClassName
+articlePage = HH.ClassName "article-page"
+
+profilePage :: HH.ClassName
+profilePage = HH.ClassName "profile-page"
+
+ionPlusRound :: HH.ClassName
+ionPlusRound = HH.ClassName "ion-plus-round"
+
+counter :: HH.ClassName
+counter = HH.ClassName "counter"
+
+articleContent :: HH.ClassName
+articleContent = HH.ClassName "article-content"
+
+articleActions :: HH.ClassName
+articleActions = HH.ClassName "article-actions"
+
+commentForm :: HH.ClassName
+commentForm = HH.ClassName "comment-form"
+
+cardBlock :: HH.ClassName
+cardBlock = HH.ClassName "card-group"
+
+commentAuthorImg :: HH.ClassName
+commentAuthorImg = HH.ClassName "comment-author-img"
+
+commentAuthor :: HH.ClassName
+commentAuthor = HH.ClassName "comment-author"
+
+datePosted :: HH.ClassName
+datePosted = HH.ClassName "date-posted"
+
+modOptions :: HH.ClassName
+modOptions = HH.ClassName "mod-options"
+
+ionEdit :: HH.ClassName
+ionEdit = HH.ClassName "ion-edit"
+
+ionTrashA :: HH.ClassName
+ionTrashA = HH.ClassName "ion-trash-a"
