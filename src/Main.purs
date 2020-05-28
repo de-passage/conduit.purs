@@ -8,6 +8,7 @@ import Halogen.HTML as HH
 import Halogen.VDom.Driver (runUI)
 import Navbar as Navbar
 import Footer as Footer
+import Home as Home
 
 type State
   = Unit
@@ -36,6 +37,7 @@ render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_
     [ Navbar.render
+    , Home.render
     , Footer.render
     ]
 

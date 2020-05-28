@@ -11,7 +11,7 @@ render =
         [ HH.a [ HP.href "/", HP.class_ (HH.ClassName "logo-font") ]
             [ HH.text "conduit" ]
         , HH.span [ HP.class_ (HH.ClassName "attribution") ]
-            [ HH.text "An interactive learning project from"
+            [ HH.text "An interactive learning project from "
             , HH.a [ HP.href "https://thinkster.io" ] [ HH.text "Thinkster" ]
             , HH.text ". Code & design licensed under MIT."
             ]
