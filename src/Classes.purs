@@ -59,6 +59,9 @@ tagDefault = HH.ClassName "tag-default"
 tagPill :: HH.ClassName
 tagPill = HH.ClassName "tag-pill"
 
+tagOutline :: HH.ClassName
+tagOutline = HH.ClassName "tag-outline"
+
 tagList :: HH.ClassName
 tagList = HH.ClassName "tag-list"
 
@@ -121,3 +124,15 @@ ionEdit = HH.ClassName "ion-edit"
 
 ionTrashA :: HH.ClassName
 ionTrashA = HH.ClassName "ion-trash-a"
+
+userInfo :: HH.ClassName
+userInfo = HH.ClassName "user-info"
+
+userImg :: HH.ClassName
+userImg = HH.ClassName "user-img"
+
+actionBtn :: HH.ClassName
+actionBtn = HH.ClassName "action-button"
+
+articleToggle :: HH.ClassName
+articleToggle = HH.ClassName "article-toggle"
