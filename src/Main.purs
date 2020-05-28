@@ -1,12 +1,13 @@
 module Main where
 
 import Prelude
-
 import Effect (Effect)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.VDom.Driver (runUI)
+import Navbar as Navbar
+import Footer as Footer
 
 type State
   = Unit
@@ -33,7 +34,10 @@ initialState = const unit
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
-  HH.div_ [ HH.text "Hello Conduit!" ]
+  HH.div_
+    [ Navbar.render
+    , Footer.render
+    ]
 
 handleAction ∷ forall o m. Action → H.HalogenM State Action () o m Unit
 handleAction _ = pure unit
