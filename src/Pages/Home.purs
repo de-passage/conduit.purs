@@ -1,10 +1,14 @@
 module Pages.Home where
 
 import Prelude
+
 import Classes as C
+import Data.Article (Slug(..))
+import Data.User (Username(..))
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Router (profileUrl, showArticleUrl)
 
 render :: forall w i. HH.HTML w i
 render =
@@ -34,16 +38,16 @@ render =
                     ]
                 , HH.div [ HP.class_ C.articlePreview ]
                     [ HH.div [ HP.class_ C.articleMeta ]
-                        [ HH.a [ HP.href "profile.html" ] [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
+                        [ HH.a [ HP.href (profileUrl (Username "whatever")) ] [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
                         , HH.div [ HP.class_ C.info ]
-                            [ HH.a [ HP.href "#/profile/whatever/", HP.class_ C.author ] [ HH.text "Eric Simons" ]
+                            [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.author ] [ HH.text "Eric Simons" ]
                             , HH.span [ HP.class_ C.date ] [ HH.text "January 20th" ]
                             ]
                         , HH.button [ HP.classes [ BS.btn, BS.btnOutlinePrimary, BS.btnSm, C.pullXsRight ] ]
                             [ HH.i [ HP.class_ C.ionHeart ] [], HH.text " 29"
                             ]
                         ]
-                    , HH.a [ HP.href "", HP.class_ C.previewLink ]
+                    , HH.a [ HP.href (showArticleUrl (Slug "whatever")), HP.class_ C.previewLink ]
                         [ HH.h1_ [ HH.text "How to build webapps that scale" ]
                         , HH.p_ [ HH.text "This is the description for the post." ]
                         , HH.span_ [ HH.text "Read more..." ]
@@ -51,16 +55,16 @@ render =
                     ]
                 , HH.div [ HP.class_ C.articlePreview ]
                     [ HH.div [ HP.class_ C.articleMeta ]
-                        [ HH.a [ HP.href "profile.html" ] [ HH.img [ HP.src "http://i.imgur.com/N4VcUeJ.jpg" ] ]
+                        [ HH.a [ HP.href (profileUrl (Username "whatever")) ] [ HH.img [ HP.src "http://i.imgur.com/N4VcUeJ.jpg" ] ]
                         , HH.div [ HP.class_ C.info ]
-                            [ HH.a [ HP.href "", HP.class_ C.author ] [ HH.text "Albert Pai" ]
+                            [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.author ] [ HH.text "Albert Pai" ]
                             , HH.span [ HP.class_ C.date ] [ HH.text "January 20th" ]
                             ]
                         , HH.button [ HP.classes [ BS.btn, BS.btnOutlinePrimary, BS.btnSm, C.pullXsRight ] ]
                             [ HH.i [ HP.class_ C.ionHeart ] [], HH.text " 32"
                             ]
                         ]
-                    , HH.a [ HP.href "", HP.class_ C.previewLink ]
+                    , HH.a [ HP.href (showArticleUrl (Slug "whatever")), HP.class_ C.previewLink ]
                         [ HH.h1_ [ HH.text "The song you won't ever stop singing. No matter how hard you try." ]
                         , HH.p_ [ HH.text "This is the description for the post." ]
                         , HH.span_ [ HH.text "Read more..." ]

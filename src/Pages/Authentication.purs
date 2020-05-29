@@ -4,6 +4,7 @@ import Classes as C
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Router (loginUrl)
 
 render :: forall w i. HH.HTML w i
 render =
@@ -13,7 +14,7 @@ render =
             [ HH.div [ HP.classes [ BS.colMd6, BS.offsetMd3, C.colXs12 ] ]
                 [ HH.h1 [ HP.class_ C.textXsCenter ] [ HH.text "Sign up" ]
                 , HH.p [ HP.class_ C.textXsCenter ]
-                    [ HH.a [ HP.href "" ] [ HH.text "Have an account?" ]
+                    [ HH.a [ HP.href loginUrl ] [ HH.text "Have an account?" ]
                     ]
                 , HH.ul [ HP.class_ C.errorMessages ]
                     [ HH.li_ [ HH.text "That email is already taken" ]

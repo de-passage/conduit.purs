@@ -71,7 +71,5 @@ handleQuery = case _ of
           pure unit
       )
       identity
-      (route (\r -> 
-        do  liftEffect $ log (show r)
-            H.modify_ (_ { currentRoute = r })) msg)
+      (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)

@@ -1,9 +1,11 @@
 module Pages.Article where
 
 import Classes as C
+import Data.User (Username(..))
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Router (profileUrl)
 
 render :: forall w i. HH.HTML w i
 render =
@@ -12,9 +14,10 @@ render =
         [ HH.div [ HP.class_ BS.container ]
             [ HH.h1_ [ HH.text "How to build webapps that scale" ]
             , HH.div [ HP.class_ C.articleMeta ]
-                [ HH.a [ HP.href "" ] [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
+                [ HH.a [ HP.href (profileUrl (Username "whatever")) ]
+                    [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
                 , HH.div [ HP.class_ C.info ]
-                    [ HH.a [ HP.href "", HP.class_ C.author ] [ HH.text "Eric Simons" ]
+                    [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.author ] [ HH.text "Eric Simons" ]
                     , HH.span [ HP.class_ C.date ] [ HH.text "January 20th" ]
                     ]
                 , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineSecondary ] ]
@@ -46,9 +49,9 @@ render =
         , HH.hr_
         , HH.div [ HP.class_ C.articleActions ]
             [ HH.div [ HP.class_ C.articleMeta ]
-                [ HH.a [ HP.href "" ] [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
+                [ HH.a [ HP.href (profileUrl (Username "whatever")) ] [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg" ] ]
                 , HH.div [ HP.class_ C.info ]
-                    [ HH.a [ HP.href "", HP.class_ C.author ] [ HH.text "Eric Simons" ]
+                    [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.author ] [ HH.text "Eric Simons" ]
                     , HH.span [ HP.class_ C.date ] [ HH.text "January 20th" ]
                     ]
                 , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineSecondary ] ]
@@ -82,11 +85,11 @@ render =
                         [ HH.p [ HP.class_ BS.cardText ] [ HH.text "With supporting text below as a natural lead-in to additional content." ]
                         ]
                     , HH.div [ HP.class_ BS.cardFooter ]
-                        [ HH.a [ HP.href "", HP.class_ C.commentAuthor ]
+                        [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.commentAuthor ]
                             [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg", HP.class_ C.commentAuthorImg ]
                             ]
                         , HH.text " "
-                        , HH.a [ HP.href "", HP.class_ C.commentAuthor ] [ HH.text "John Schmidt" ]
+                        , HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.commentAuthor ] [ HH.text "John Schmidt" ]
                         , HH.span [ HP.class_ C.datePosted ] [ HH.text "Dec 29th" ]
                         ]
                     ]
@@ -95,11 +98,11 @@ render =
                         [ HH.p [ HP.class_ BS.cardText ] [ HH.text "With supporting text below as a natural lead-in to additional content." ]
                         ]
                     , HH.div [ HP.class_ BS.cardFooter ]
-                        [ HH.a [ HP.href "", HP.class_ C.commentAuthor ]
+                        [ HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.commentAuthor ]
                             [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg", HP.class_ C.commentAuthorImg ]
                             ]
                         , HH.text " "
-                        , HH.a [ HP.href "", HP.class_ C.commentAuthor ] [ HH.text "Jacob Schmidt" ]
+                        , HH.a [ HP.href (profileUrl (Username "whatever")), HP.class_ C.commentAuthor ] [ HH.text "Jacob Schmidt" ]
                         , HH.span [ HP.class_ C.datePosted ] [ HH.text "Dec 29th" ]
                         , HH.span [ HP.class_ C.modOptions ]
                             [ HH.i [ HP.class_ C.ionEdit ] []
