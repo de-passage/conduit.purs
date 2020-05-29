@@ -1,45 +1,45 @@
 module Main where
 
 import Prelude
+
+import App as App
+import Control.Coroutine as CR
+import Control.Coroutine.Aff as CRA
+import Data.Foldable (traverse_)
+import Data.Maybe (Maybe(..))
+import Data.String.CodeUnits as Str
 import Effect (Effect)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Halogen as H
 import Halogen.Aff as HA
-import Halogen.HTML as HH
 import Halogen.VDom.Driver (runUI)
-import Navbar as Navbar
-import Footer as Footer
-import Pages.Home as Home
-
-type State
-  = Unit
-
-data Action
-  = Unit
+import Web.Event.EventTarget (eventListener, addEventListener) as DOM
+import Web.HTML (window) as DOM
+import Web.HTML.Event.HashChangeEvent as HCE
+import Web.HTML.Event.HashChangeEvent.EventTypes as HCET
+import Web.HTML.Window as Window
 
 main :: Effect Unit
 main =
   HA.runHalogenAff do
     body <- HA.awaitBody
-    runUI component unit body
+    io <- runUI App.component unit body
+    CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
-component :: forall q i o m. H.Component HH.HTML q i o m
-component =
-  H.mkComponent
-    { initialState
-    , render
-    , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
-    }
+-- taken from the Halogen examples 
+hashChangeProducer :: CR.Producer HCE.HashChangeEvent Aff Unit
+hashChangeProducer = CRA.produce \emitter -> do
+  listener <- DOM.eventListener (traverse_ (CRA.emit emitter) <<< HCE.fromEvent)
+  liftEffect $
+    DOM.window
+      >>= Window.toEventTarget
+      >>> DOM.addEventListener HCET.hashchange listener false
 
-initialState :: forall i. i -> State
-initialState = const unit
-
-render :: forall m. State -> H.ComponentHTML Action () m
-render state =
-  HH.div_
-    [ Navbar.render
-    , Home.render
-    , Footer.render
-    ]
-
-handleAction ∷ forall o m. Action → H.HalogenM State Action () o m Unit
-handleAction _ = pure unit
+hashChangeConsumer
+  :: (forall a. App.Query a -> Aff (Maybe a))
+  -> CR.Consumer HCE.HashChangeEvent Aff Unit
+hashChangeConsumer query = CR.consumer \event -> do
+  let hash = Str.drop 1 $ Str.dropWhile (_ /= '#') $ HCE.newURL event
+  void $ query $ H.tell $ App.ChangeRoute hash
+  pure Nothing
