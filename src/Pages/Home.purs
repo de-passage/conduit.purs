@@ -1,26 +1,41 @@
 module Pages.Home where
 
 import Prelude
-
+import API (Article)
+import API as API
 import Classes as C
 import Data.Article (Slug(..))
 import Data.Const (Const(..))
+import Data.Either (Either(..))
 import Data.User (Username(..))
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Router (profileUrl, showArticleUrl)
 
-type Query = Const Void
-type Output = Void
-type Slot = H.Slot Query Output
-type State = Unit
-type Action = Unit
-type ChildSlots = ()
+type Query
+  = Const Void
 
-component :: forall i m. MonadAff m => H.Component HH.HTML Query i Output m 
+type Output
+  = Void
+
+type Slot
+  = H.Slot Query Output
+
+data State
+  = Loading
+  | LoadError String
+  | Loaded (Array Article)
+
+data Action
+  = Init
+
+type ChildSlots
+  = ()
+
+component :: forall i m. MonadAff m => H.Component HH.HTML Query i Output m
 component =
   H.mkComponent
     { initialState
@@ -29,7 +44,7 @@ component =
     }
 
 initialState :: forall i. i -> State
-initialState _ = unit
+initialState _ = Loading
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
@@ -116,6 +131,10 @@ render state =
 tagLink :: forall w i. String -> HH.HTML w i
 tagLink s = HH.a [ HP.href "", HP.classes [ C.tagPill, C.tagDefault ] ] [ HH.text s ]
 
-handleAction ∷ forall o m. Action → H.HalogenM State Action () o m Unit
-handleAction _ = pure unit
-
+handleAction ∷ forall o m. MonadAff m => Action -> H.HalogenM State Action () o m Unit
+handleAction = case _ of
+  Init -> do
+    result <- liftAff $ API.getArticles
+    case result of
+      (Left err) -> H.put (LoadError err)
+      (Right arts) -> H.put (Loaded arts.articles)

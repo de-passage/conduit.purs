@@ -87,6 +87,9 @@ follow u = profile u <> "/follow"
 getArticle :: Slug -> Aff (Either String ArticleResponse)
 getArticle s = getFromApi (article s)
 
+getArticles :: Aff (Either String ArticlesResponse)
+getArticles = getFromApi articles
+
 getProfile :: Username -> Aff (Either String ProfileResponse)
 getProfile u = getFromApi (profile u)
 
