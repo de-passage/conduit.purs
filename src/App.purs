@@ -1,8 +1,11 @@
 module App where
 
 import Prelude
+
 import Data.Either as E
 import Data.Maybe (Maybe(..))
+import Data.Symbol (SProxy(..))
+import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console (log)
 import Footer as Footer
@@ -27,7 +30,12 @@ data Action
 data Query a
   = ChangeRoute String a
 
-component :: forall i o m. MonadEffect m => H.Component HH.HTML Query i o m
+type ChildSlots = ( homepage :: Pages.Home.Slot Unit )
+
+_homePage :: SProxy "homepage"
+_homePage = SProxy
+
+component :: forall i o m. MonadAff m => H.Component HH.HTML Query i o m
 component =
   H.mkComponent
     { initialState
@@ -38,7 +46,7 @@ component =
 initialState :: forall i. i -> State
 initialState _ = { currentRoute: Home }
 
-render :: forall m. State -> H.ComponentHTML Action () m
+render :: forall m. MonadAff m => State -> H.ComponentHTML Action ChildSlots m
 render state =
   HH.div_
     [ Navbar.render
@@ -46,9 +54,9 @@ render state =
     , Footer.render
     ]
 
-showPage :: forall w i. Route -> State -> HH.HTML w i
+showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
 showPage r s = case r of
-  Home -> Pages.Home.render
+  Home -> HH.slot _homePage unit Pages.Home.component unit absurd
   Login -> Pages.Authentication.render
   Register -> Pages.Authentication.render
   Settings -> Pages.Settings.render
@@ -58,10 +66,10 @@ showPage r s = case r of
   Profile _ -> Pages.Profile.render
   Favorites _ -> Pages.Profile.render
 
-handleAction ∷ forall o m. Action → H.HalogenM State Action () o m Unit
+handleAction ∷ forall o m. Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction _ = pure unit
 
-handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action () o m (Maybe a)
+handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
   ChangeRoute msg a -> do
     liftEffect $ log msg

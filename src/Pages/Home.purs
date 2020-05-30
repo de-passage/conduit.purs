@@ -4,14 +4,35 @@ import Prelude
 
 import Classes as C
 import Data.Article (Slug(..))
+import Data.Const (Const(..))
 import Data.User (Username(..))
+import Effect.Aff.Class (class MonadAff)
+import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Router (profileUrl, showArticleUrl)
 
-render :: forall w i. HH.HTML w i
-render =
+type Query = Const Void
+type Output = Void
+type Slot = H.Slot Query Output
+type State = Unit
+type Action = Unit
+type ChildSlots = ()
+
+component :: forall i m. MonadAff m => H.Component HH.HTML Query i Output m 
+component =
+  H.mkComponent
+    { initialState
+    , render
+    , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
+    }
+
+initialState :: forall i. i -> State
+initialState _ = unit
+
+render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
+render state =
   HH.div [ HP.class_ C.homePage ]
     [ HH.div [ HP.class_ C.banner ]
         [ HH.div [ HP.class_ BS.container ]
@@ -94,3 +115,7 @@ render =
 
 tagLink :: forall w i. String -> HH.HTML w i
 tagLink s = HH.a [ HP.href "", HP.classes [ C.tagPill, C.tagDefault ] ] [ HH.text s ]
+
+handleAction ∷ forall o m. Action → H.HalogenM State Action () o m Unit
+handleAction _ = pure unit
+
