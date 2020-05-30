@@ -1,14 +1,13 @@
 module API where
 
 import Prelude
-
 import Affjax as AJ
 import Affjax.ResponseFormat as AJRF
 import Data.Argonaut as A
 import Data.Article (Slug(..))
 import Data.Bifunctor (lmap)
 import Data.Either (Either)
-import Data.User (Email, Username)
+import Data.User (Email, Username(..))
 import Effect.Aff (Aff)
 
 newtype Token
@@ -19,19 +18,23 @@ derive newtype instance encodeJsonToken :: A.EncodeJson Token
 derive newtype instance decodeJsonToken :: A.DecodeJson Token
 
 type User
-  = UserBase
+  = ProfileBase
       ( email :: Email
       , token :: Token
       )
 
 type Profile
-  = UserBase ( following :: String )
+  = ProfileBase ( following :: String )
 
-type UserBase r
+type ProfileBase r
   = { username :: Username
     , bio :: String
     , image :: String
     | r
+    }
+
+type ProfileResponse
+  = { profile :: Profile
     }
 
 type Article
@@ -47,8 +50,13 @@ type Article
     , author :: Profile
     }
 
-type Articles
-  = Array Article
+type ArticleResponse
+  = { article :: Article
+    }
+
+type ArticlesResponse
+  = { articles :: Array Article
+    }
 
 type Comment
   = { id :: Int
@@ -68,11 +76,23 @@ articles :: String
 articles = root <> "articles/"
 
 article :: Slug -> String
-article (Slug s) = articles <> s <> "/"
+article (Slug s) = articles <> s
 
-getArticle :: Slug -> Aff (Either String Article)
-getArticle s = do
-  resp <- getJson (article s)
+profile :: Username -> String
+profile (Username u) = root <> "profiles/" <> u
+
+follow :: Username -> String
+follow u = profile u <> "/follow"
+
+getArticle :: Slug -> Aff (Either String ArticleResponse)
+getArticle s = getFromApi (article s)
+
+getProfile :: Username -> Aff (Either String ProfileResponse)
+getProfile u = getFromApi (profile u)
+
+getFromApi :: forall a. A.DecodeJson a => String -> Aff (Either String a)
+getFromApi s = do
+  resp <- getJson s
   let
     result = do
       resp' <- lmap AJ.printError resp

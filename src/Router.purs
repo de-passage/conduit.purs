@@ -48,7 +48,7 @@ home :: Match Route
 home = Home <$ end
 
 homeUrl :: String
-homeUrl = "/"
+homeUrl = "#/"
 
 login :: Match Route
 login = Login <$ lit "login" <* end
