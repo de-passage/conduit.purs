@@ -1,4 +1,4 @@
-module Navbar where
+module Templates.Navbar where
 
 import Classes as C
 import Halogen.HTML as HH

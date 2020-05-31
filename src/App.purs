@@ -8,11 +8,11 @@ import Data.Symbol (SProxy(..))
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console (log)
-import Footer as Footer
 import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
-import Navbar as Navbar
+import Templates.Footer as Footer
+import Templates.Navbar as Navbar
 import Pages.Article as Pages.Article
 import Pages.Authentication as Pages.Authentication
 import Pages.Edition as Pages.Edition
