@@ -28,7 +28,7 @@ render =
                 , HH.text "  "
                 , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlinePrimary ] ]
                     [ HH.i [ HP.class_ C.ionHeart ] []
-                    , HH.text " Favorite Pose "
+                    , HH.text " Favorite Post "
                     , HH.span [ HP.class_ C.counter ] [ HH.text "(29) " ]
                     ]
                 ]
