@@ -28,6 +28,8 @@ render article =
               ]
           ]
       , HH.a [ HP.href (showArticleUrl article.slug), HP.class_ C.previewLink ]
-          [ HH.text article.description
+          [ HH.h1_ [ HH.text article.title ]
+          , HH.p_ [ HH.text article.description ]
+          , HH.span_ [ HH.text "Read more..." ]
           ]
       ]

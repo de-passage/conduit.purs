@@ -1,7 +1,9 @@
 module Data.User where
 
 import Data.Newtype
+
 import Data.Argonaut as A
+import Data.Maybe (Maybe)
 
 newtype Username
   = Username String
@@ -40,11 +42,11 @@ type User
       )
 
 type Profile
-  = ProfileBase ( following :: String )
+  = ProfileBase ( following :: Boolean )
 
 type ProfileBase r
   = { username :: Username
-    , bio :: String
+    , bio :: Maybe String
     , image :: String
     | r
     }
