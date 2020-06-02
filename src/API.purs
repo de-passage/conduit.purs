@@ -41,10 +41,10 @@ articles :: String
 articles = root <> "articles/"
 
 article :: Slug -> String
-article (Slug s) = articles <> s
+article (Slug s) = articles <> s <> "/"
 
 profile :: Username -> String
-profile (Username u) = root <> "profiles/" <> u
+profile (Username u) = root <> "profiles/" <> u <> "/"
 
 follow :: Username -> String
 follow u = profile u <> "/follow"
