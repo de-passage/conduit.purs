@@ -4,15 +4,15 @@ import Prelude
 
 import Data.Either as E
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
+import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console (log)
 import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
-import Templates.Footer as Footer
-import Templates.Navbar as Navbar
 import Pages.Article as Pages.Article
 import Pages.Authentication as Pages.Authentication
 import Pages.Edition as Pages.Edition
@@ -20,6 +20,8 @@ import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
 import Router (Route(..), route)
+import Templates.Footer as Footer
+import Templates.Navbar as Navbar
 
 type State
   = { currentRoute :: Route }
@@ -30,10 +32,13 @@ data Action
 data Query a
   = ChangeRoute String a
 
-type ChildSlots = ( homepage :: Pages.Home.Slot Unit )
+type ChildSlots = ( homepage :: Pages.Home.Slot Unit, showArticle :: Pages.Article.Slot Unit )
 
 _homePage :: SProxy "homepage"
 _homePage = SProxy
+
+_showArticle :: SProxy "showArticle"
+_showArticle = SProxy
 
 component :: forall i o m. MonadAff m => H.Component HH.HTML Query i o m
 component =
@@ -62,7 +67,7 @@ showPage r s = case r of
   Settings -> Pages.Settings.render
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
-  ShowArticle _ -> Pages.Article.render
+  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
   Profile _ -> Pages.Profile.render
   Favorites _ -> Pages.Profile.render
 
@@ -79,5 +84,17 @@ handleQuery = case _ of
           pure unit
       )
       identity
-      (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
+      (route (\r -> (liftEffect $ log' r) *> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)
+
+log' :: Route -> Effect Unit
+log' = log <<< case _ of 
+  Home -> "Home"
+  Login -> "Login"
+  Register -> "Register"
+  Settings -> "Settings"
+  NewArticle -> "New article"
+  EditArticle slug -> "Edit " <> unwrap slug
+  ShowArticle slug -> "Show " <> unwrap slug
+  Profile username -> "Profile " <> unwrap username 
+  Favorites username -> "Favorites " <> unwrap username

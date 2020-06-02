@@ -1,20 +1,20 @@
 module Pages.Home where
 
 import Prelude
+
 import API as API
 import Classes as C
-import Control.Parallel (parSequence_, parTraverse_, parallel)
+import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
-import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Tag (Tag(..))
-import Effect.Aff (Aff)
-import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import LoadState (LoadState(..), load)
 import Templates.ArticlePreview as ArticlePreview
 
 type Query
@@ -25,11 +25,6 @@ type Output
 
 type Slot
   = H.Slot Query Output
-
-data LoadState a
-  = Loading
-  | LoadError String
-  | Loaded a
 
 type State
   = { tags :: LoadState (Array Tag)
@@ -122,17 +117,6 @@ handleAction ∷
 handleAction = case _ of
   Init -> parSequence_ [ loadArticles, loadTags ]
   where
-  load ::
-    forall a.
-    (Aff (Either String a)) ->
-    (LoadState a -> State -> State) ->
-    H.HalogenM State Action ChildSlots o m Unit
-  load get set = do
-    result <- liftAff $ get
-    case result of
-      (Left err) -> H.modify_ (set (LoadError err))
-      (Right arts) -> H.modify_ (set (Loaded arts))
-
   loadArticles = load API.getArticles (\v -> _ { articles = v })
 
   loadTags = load API.getTags (\v -> _ { tags = v })

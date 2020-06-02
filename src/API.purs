@@ -52,6 +52,9 @@ follow u = profile u <> "/follow"
 tags :: String 
 tags = root <> "tags/"
 
+comments :: Slug -> String
+comments slug = article slug <> "comments/"
+
 getArticle :: Slug -> Aff (Either String Article)
 getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (article s)
 
@@ -63,6 +66,9 @@ getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)
 
 getTags :: Aff (Either String (Array Tag))
 getTags = getFromApi' (_.tags :: TagsResponse -> Array Tag) tags
+
+getComments :: Slug -> Aff (Either String (Array Comment))
+getComments slug = getFromApi' (_.comments :: CommentsResponse -> Array Comment) (comments slug)
 
 getFromApi :: forall a. A.DecodeJson a => String -> Aff (Either String a)
 getFromApi s = do
