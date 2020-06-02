@@ -55,11 +55,17 @@ tags = root <> "tags/"
 comments :: Slug -> String
 comments slug = article slug <> "comments/"
 
+userArticles :: Username -> String
+userArticles (Username u) = articles <> "?author=" <> u
+
 getArticle :: Slug -> Aff (Either String Article)
 getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (article s)
 
 getArticles :: Aff (Either String (Array Article))
 getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) articles
+
+getUserArticles :: Username -> Aff (Either String (Array Article))
+getUserArticles = userArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
 getProfile :: Username -> Aff (Either String Profile)
 getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)

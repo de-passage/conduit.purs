@@ -8,9 +8,8 @@ import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (class MonadEffect)
-import Effect.Console (log)
-import Halogen (liftEffect)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class.Console (log)
 import Halogen as H
 import Halogen.HTML as HH
 import Pages.Article as Pages.Article
@@ -32,13 +31,20 @@ data Action
 data Query a
   = ChangeRoute String a
 
-type ChildSlots = ( homepage :: Pages.Home.Slot Unit, showArticle :: Pages.Article.Slot Unit )
+type ChildSlots
+  = ( homepage :: Pages.Home.Slot Unit
+    , showArticle :: Pages.Article.Slot Unit
+    , profile :: Pages.Profile.Slot Unit
+    )
 
 _homePage :: SProxy "homepage"
 _homePage = SProxy
 
 _showArticle :: SProxy "showArticle"
 _showArticle = SProxy
+
+_profile :: SProxy "profile"
+_profile = SProxy
 
 component :: forall i o m. MonadAff m => H.Component HH.HTML Query i o m
 component =
@@ -68,8 +74,8 @@ showPage r s = case r of
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
-  Profile _ -> Pages.Profile.render
-  Favorites _ -> Pages.Profile.render
+  Profile username -> HH.slot _profile unit Pages.Profile.component username absurd
+  Favorites username -> HH.slot _profile unit Pages.Profile.component username absurd
 
 handleAction ∷ forall o m. Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction _ = pure unit
@@ -77,24 +83,25 @@ handleAction _ = pure unit
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
   ChangeRoute msg a -> do
-    liftEffect $ log msg
     E.either
       ( \s -> do
           liftEffect $ log s
           pure unit
       )
       identity
-      (route (\r -> (liftEffect $ log' r) *> H.modify_ (_ { currentRoute = r })) msg)
+      (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)
 
 log' :: Route -> Effect Unit
-log' = log <<< case _ of 
-  Home -> "Home"
-  Login -> "Login"
-  Register -> "Register"
-  Settings -> "Settings"
-  NewArticle -> "New article"
-  EditArticle slug -> "Edit " <> unwrap slug
-  ShowArticle slug -> "Show " <> unwrap slug
-  Profile username -> "Profile " <> unwrap username 
-  Favorites username -> "Favorites " <> unwrap username
+log' =
+  log
+    <<< case _ of
+        Home -> "Home"
+        Login -> "Login"
+        Register -> "Register"
+        Settings -> "Settings"
+        NewArticle -> "New article"
+        EditArticle slug -> "Edit " <> unwrap slug
+        ShowArticle slug -> "Show " <> unwrap slug
+        Profile username -> "Profile " <> unwrap username
+        Favorites username -> "Favorites " <> unwrap username

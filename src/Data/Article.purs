@@ -3,6 +3,7 @@ module Data.Article where
 import Data.Newtype
 
 import Data.Argonaut (class DecodeJson, class EncodeJson)
+import Data.Tag (Tag)
 import Data.User (Profile)
 
 newtype Slug = Slug String
@@ -16,7 +17,7 @@ type Article
     , title :: String
     , description :: String
     , body :: String
-    , tagList :: Array String
+    , tagList :: Array Tag
     , createdAt :: String
     , updatedAt :: String
     , favorited :: Boolean

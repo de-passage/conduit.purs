@@ -1,7 +1,6 @@
 module Templates.ArticlePreview where
 
 import Prelude
-
 import Classes as C
 import Data.Article (Article)
 import Data.Newtype (unwrap)
@@ -14,6 +13,7 @@ render :: forall w i. Article -> HH.HTML w i
 render article =
   let
     username = unwrap article.author.username
+
     userUrl = profileUrl article.author.username
   in
     HH.div [ HP.class_ C.articlePreview ]
@@ -32,4 +32,7 @@ render article =
           , HH.p_ [ HH.text article.description ]
           , HH.span_ [ HH.text "Read more..." ]
           ]
+      , HH.ul [ HP.class_ C.tagList ] (map mkTag article.tagList)
       ]
+  where
+    mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
