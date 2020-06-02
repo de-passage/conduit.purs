@@ -3,10 +3,13 @@ module Pages.Home where
 import Prelude
 import API as API
 import Classes as C
+import Control.Parallel (parSequence_, parTraverse_, parallel)
 import Data.Article (Article)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Data.Tag (Tag(..))
+import Effect.Aff (Aff)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -23,10 +26,15 @@ type Output
 type Slot
   = H.Slot Query Output
 
-data State
+data LoadState a
   = Loading
   | LoadError String
-  | Loaded (Array Article)
+  | Loaded a
+
+type State
+  = { tags :: LoadState (Array Tag)
+    , articles :: LoadState (Array Article)
+    }
 
 data Action
   = Init
@@ -48,15 +56,26 @@ component =
     }
 
 initialState :: forall i. i -> State
-initialState _ = Loading
+initialState _ = { articles: Loading, tags: Loading }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    articles = case state of
+    articles = case state.articles of
       Loading -> [ HH.text "Loading" ]
       Loaded as -> map ArticlePreview.render as
       LoadError error -> [ HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ] ]
+
+    tagList = case state.tags of
+      Loading -> HH.div_ []
+      Loaded tags ->
+        HH.div [ HP.class_ C.sidebar ]
+          [ HH.p_ [ HH.text "Popular Tags" ]
+          , HH.div [ HP.class_ C.tagList ]
+              ( map tagLink tags
+              )
+          ]
+      LoadError error -> HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ]
   in
     HH.div [ HP.class_ C.homePage ]
       [ HH.div [ HP.class_ C.banner ]
@@ -86,33 +105,34 @@ render state =
                       )
                   ]
               , HH.div [ HP.class_ BS.colMd3 ]
-                  [ HH.div [ HP.class_ C.sidebar ]
-                      [ HH.p_ [ HH.text "Popular Tags" ]
-                      , HH.div [ HP.class_ C.tagList ]
-                          ( map tagLink
-                              [ "programming"
-                              , "javascript"
-                              , "emberjs"
-                              , "angularjs"
-                              , "react"
-                              , "mean"
-                              , "node"
-                              , "rails"
-                              ]
-                          )
-                      ]
+                  [ tagList
                   ]
               ]
           ]
       ]
 
-tagLink :: forall w i. String -> HH.HTML w i
-tagLink s = HH.a [ HP.href "", HP.classes [ C.tagPill, C.tagDefault ] ] [ HH.text s ]
+tagLink :: forall w i. Tag -> HH.HTML w i
+tagLink (Tag s) = HH.a [ HP.href "", HP.classes [ C.tagPill, C.tagDefault ] ] [ HH.text s ]
 
-handleAction ∷ forall o m. MonadAff m => Action -> H.HalogenM State Action () o m Unit
+handleAction ∷
+  forall o m.
+  MonadAff m =>
+  Action ->
+  H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
-  Init -> do
-    result <- liftAff $ API.getArticles
+  Init -> parSequence_ [ loadArticles, loadTags ]
+  where
+  load ::
+    forall a.
+    (Aff (Either String a)) ->
+    (LoadState a -> State -> State) ->
+    H.HalogenM State Action ChildSlots o m Unit
+  load get set = do
+    result <- liftAff $ get
     case result of
-      (Left err) -> H.put (LoadError err)
-      (Right arts) -> H.put (Loaded arts.articles)
+      (Left err) -> H.modify_ (set (LoadError err))
+      (Right arts) -> H.modify_ (set (Loaded arts))
+
+  loadArticles = load API.getArticles (\v -> _ { articles = v })
+
+  loadTags = load API.getTags (\v -> _ { tags = v })

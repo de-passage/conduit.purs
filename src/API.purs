@@ -1,6 +1,7 @@
 module API where
 
 import Prelude
+
 import Affjax as AJ
 import Affjax.ResponseFormat as AJRF
 import Data.Argonaut as A
@@ -8,6 +9,7 @@ import Data.Article (Slug(..), Article)
 import Data.Bifunctor (lmap)
 import Data.Comment (Comment)
 import Data.Either (Either)
+import Data.Tag (Tag)
 import Data.User (Username(..), Profile)
 import Effect.Aff (Aff)
 
@@ -27,8 +29,10 @@ type CommentResponse
   = { comment :: Comment
     }
 
-type Comments
+type CommentsResponse
   = { comments :: Array Comment }
+
+type TagsResponse = { tags :: Array Tag }
 
 root :: String
 root = "https://conduit.productionready.io/api/"
@@ -45,14 +49,20 @@ profile (Username u) = root <> "profiles/" <> u
 follow :: Username -> String
 follow u = profile u <> "/follow"
 
-getArticle :: Slug -> Aff (Either String ArticleResponse)
-getArticle s = getFromApi (article s)
+tags :: String 
+tags = root <> "tags/"
 
-getArticles :: Aff (Either String ArticlesResponse)
-getArticles = getFromApi articles
+getArticle :: Slug -> Aff (Either String Article)
+getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (article s)
 
-getProfile :: Username -> Aff (Either String ProfileResponse)
-getProfile u = getFromApi (profile u)
+getArticles :: Aff (Either String (Array Article))
+getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) articles
+
+getProfile :: Username -> Aff (Either String Profile)
+getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)
+
+getTags :: Aff (Either String (Array Tag))
+getTags = getFromApi' (_.tags :: TagsResponse -> Array Tag) tags
 
 getFromApi :: forall a. A.DecodeJson a => String -> Aff (Either String a)
 getFromApi s = do
@@ -62,6 +72,12 @@ getFromApi s = do
       resp' <- lmap AJ.printError resp
       A.decodeJson resp'.body
   pure result
+
+getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> String -> Aff (Either String b)
+getFromApi' f url =
+  do 
+    resp <- getFromApi url
+    pure (f <$> resp)
 
 getJson :: String -> Aff (Either AJ.Error (AJ.Response A.Json))
 getJson = AJ.get AJRF.json
