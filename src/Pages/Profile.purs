@@ -25,21 +25,30 @@ type Query
 type Output
   = Void
 
-type Input
-  = Username
+data Input
+  = Authored Username
+  | Favorited Username
+
+extract :: Input -> Username
+extract (Authored u) = u
+extract (Favorited u) = u
+
+dispatch :: forall a. a -> a -> Input -> a
+dispatch a _ (Authored _) = a
+dispatch _ a (Favorited _) = a
 
 type Slot
   = H.Slot Query Output
 
 type State
   = { profile :: LoadState Profile
-    , username :: Username
+    , username :: Input
     , articles :: LoadState (Array Article)
     }
 
 data Action
   = Init
-  | Receive Username
+  | Receive Input
 
 type ChildSlots
   = ()
@@ -63,6 +72,11 @@ initialState username = { profile: Loading, username, articles : Loading }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
+  let
+    showFavorites = dispatch false true state.username
+    articleClass = if showFavorites then [ BS.navLink ] else [ BS.navLink, BS.active ]
+    favoriteClass = if showFavorites then [ BS.navLink, BS.active ] else [ BS.navLink ]
+  in
     case state.profile of
         Loading -> HH.div_ [ HH.text "Loading"]
         LoadError error -> HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ]
@@ -89,10 +103,10 @@ render state =
                             [ HH.div [ HP.class_ C.articleToggle ]
                                 ([ HH.ul [ HP.classes [ BS.nav, BS.navPills, C.outlineActive ] ]
                                     [ HH.li [ HP.class_ BS.navItem ]
-                                        [ HH.a [ HP.classes [ BS.navLink, BS.active ], HP.href (profileUrl profile.username) ] [ HH.text "My Articles" ]
+                                        [ HH.a [ HP.classes articleClass, HP.href (profileUrl profile.username) ] [ HH.text "My Articles" ]
                                         ]
                                     , HH.li [ HP.class_ BS.navItem ]
-                                        [ HH.a [ HP.classes [ BS.navLink ], HP.href (favoritesUrl profile.username) ] [ HH.text "Favored Articles" ]
+                                        [ HH.a [ HP.classes favoriteClass, HP.href (favoritesUrl profile.username) ] [ HH.text "Favored Articles" ]
                                         ]
                                     ]
                                 ]
@@ -119,6 +133,9 @@ handleAction = case _ of
     handleAction (Receive state.username)
   Receive username -> do
     parSequence_ [ loadProfile username, loadArticles username ]
+    H.modify_ (_ { username = username })
   where
-  loadProfile username = load (API.getProfile username) (\v -> _ { profile = v })
-  loadArticles username = load (API.getUserArticles username) (\v -> _ { articles = v })
+  setArticles c u v s = s { articles = v, username = c u}
+  loadProfile username = load (API.getProfile $ extract username) (\v -> _ { profile = v })
+  loadArticles (Authored username) = load (API.getUserArticles username) $ setArticles Authored username
+  loadArticles (Favorited username) = load (API.getFavorites username) $ setArticles Favorited username

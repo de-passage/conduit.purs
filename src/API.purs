@@ -58,6 +58,9 @@ comments slug = article slug <> "comments/"
 userArticles :: Username -> String
 userArticles (Username u) = articles <> "?author=" <> u
 
+favorites :: Username -> String
+favorites (Username u) = articles <> "?favorited=" <> u
+
 getArticle :: Slug -> Aff (Either String Article)
 getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (article s)
 
@@ -66,6 +69,9 @@ getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) arti
 
 getUserArticles :: Username -> Aff (Either String (Array Article))
 getUserArticles = userArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
+
+getFavorites :: Username -> Aff (Either String (Array Article))
+getFavorites = favorites >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article) 
 
 getProfile :: Username -> Aff (Either String Profile)
 getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)

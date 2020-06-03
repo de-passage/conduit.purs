@@ -16,6 +16,7 @@ import Pages.Article as Pages.Article
 import Pages.Authentication as Pages.Authentication
 import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
+import Pages.Profile (Input(..))
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
 import Router (Route(..), route)
@@ -74,8 +75,8 @@ showPage r s = case r of
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
-  Profile username -> HH.slot _profile unit Pages.Profile.component username absurd
-  Favorites username -> HH.slot _profile unit Pages.Profile.component username absurd
+  Profile username -> HH.slot _profile unit Pages.Profile.component (Authored username) absurd
+  Favorites username -> HH.slot _profile unit Pages.Profile.component (Favorited username) absurd
 
 handleAction ∷ forall o m. Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction _ = pure unit
