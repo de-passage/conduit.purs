@@ -3,14 +3,16 @@ module API where
 import Prelude
 
 import Affjax as AJ
+import Affjax.RequestBody as AJRB
 import Affjax.ResponseFormat as AJRF
 import Data.Argonaut as A
 import Data.Article (Slug(..), Article)
 import Data.Bifunctor (lmap)
 import Data.Comment (Comment)
 import Data.Either (Either)
+import Data.Maybe (Maybe(..))
 import Data.Tag (Tag(..))
-import Data.User (Username(..), Profile)
+import Data.User (Profile, Username(..), User)
 import Effect.Aff (Aff)
 
 type ProfileResponse
@@ -32,7 +34,8 @@ type CommentResponse
 type CommentsResponse
   = { comments :: Array Comment }
 
-type TagsResponse = { tags :: Array Tag }
+type TagsResponse
+  = { tags :: Array Tag }
 
 root :: String
 root = "https://conduit.productionready.io/api/"
@@ -47,13 +50,19 @@ profile :: Username -> String
 profile (Username u) = root <> "profiles/" <> u <> "/"
 
 follow :: Username -> String
-follow u = profile u <> "/follow"
+follow u = profile u <> "follow/"
 
-tags :: String 
+tags :: String
 tags = root <> "tags/"
 
 comments :: Slug -> String
 comments slug = article slug <> "comments/"
+
+users :: String
+users = root <> "users/"
+
+loginUrl :: String
+loginUrl = users <> "login/"
 
 userArticles :: Username -> String
 userArticles (Username u) = articles <> "?author=" <> u
@@ -77,7 +86,7 @@ getTaggedArticles :: Tag -> Aff (Either String (Array Article))
 getTaggedArticles = taggedArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
 getFavorites :: Username -> Aff (Either String (Array Article))
-getFavorites = favorites >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article) 
+getFavorites = favorites >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
 getProfile :: Username -> Aff (Either String Profile)
 getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)
@@ -88,20 +97,24 @@ getTags = getFromApi' (_.tags :: TagsResponse -> Array Tag) tags
 getComments :: Slug -> Aff (Either String (Array Comment))
 getComments slug = getFromApi' (_.comments :: CommentsResponse -> Array Comment) (comments slug)
 
+postToApi :: forall a. A.DecodeJson a => String -> Maybe AJRB.RequestBody -> Aff (Either String a)
+postToApi s r = AJ.post AJRF.json s r <#> fromApiResponse
+
+login :: forall a. A.DecodeJson a => { email::String, password::String } -> Aff (Either String User)
+login = postToApi loginUrl <<< Just <<< AJRB.Json <<< A.encodeJson
+
+fromApiResponse :: forall a. A.DecodeJson a => Either AJ.Error (AJ.Response A.Json) -> Either String a
+fromApiResponse a = do
+  resp <- lmap AJ.printError a
+  A.decodeJson resp.body
+
 getFromApi :: forall a. A.DecodeJson a => String -> Aff (Either String a)
-getFromApi s = do
-  resp <- getJson s
-  let
-    result = do
-      resp' <- lmap AJ.printError resp
-      A.decodeJson resp'.body
-  pure result
+getFromApi s = getJson s <#> fromApiResponse
 
 getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> String -> Aff (Either String b)
-getFromApi' f url =
-  do 
-    resp <- getFromApi url
-    pure (f <$> resp)
+getFromApi' f url = do
+  resp <- getFromApi url
+  pure (f <$> resp)
 
 getJson :: String -> Aff (Either AJ.Error (AJ.Response A.Json))
 getJson = AJ.get AJRF.json
