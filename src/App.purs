@@ -36,6 +36,7 @@ type ChildSlots
   = ( homepage :: Pages.Home.Slot Unit
     , showArticle :: Pages.Article.Slot Unit
     , profile :: Pages.Profile.Slot Unit
+    , authentication :: Pages.Authentication.Slot Unit
     )
 
 type Input
@@ -49,6 +50,9 @@ _showArticle = SProxy
 
 _profile :: SProxy "profile"
 _profile = SProxy
+
+_authentication :: SProxy "authentication"
+_authentication = SProxy
 
 component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
@@ -79,8 +83,8 @@ render state =
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
 showPage r s = case r of
   Home -> HH.slot _homePage unit Pages.Home.component s absurd
-  Login -> Pages.Authentication.render
-  Register -> Pages.Authentication.render
+  Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login absurd
+  Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register absurd
   Settings -> Pages.Settings.render
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
