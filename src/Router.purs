@@ -10,13 +10,17 @@ module Router
   , newArticleUrl
   , editArticleUrl
   , showArticleUrl
+  , routeWith404
   ) where
 
 import Prelude
+
 import Data.Article (Slug(..))
-import Data.Either (Either)
+import Data.Either (Either, either)
 import Data.Foldable (oneOf)
 import Data.Maybe (fromMaybe)
+import Data.Newtype (unwrap)
+import Data.Url (Url(..))
 import Data.User (Username(..))
 import Global (decodeURIComponent)
 import Routing.Match (Match, end, lit, runMatch, str, root)
@@ -32,17 +36,19 @@ data Route
   | ShowArticle Slug
   | Profile Username
   | Favorites Username
-
+  | NotFound Url
+  
 instance showRoute :: Show Route where
   show Home = "Home"
   show Register = "Register"
   show Settings = "Settings"
   show Login = "Login"
   show NewArticle = "NewArticle"
-  show (EditArticle _) = "EditArticle"
-  show (ShowArticle _) = "ShowArticle"
-  show (Profile _) = "Profile"
-  show (Favorites _) = "Favorites"
+  show (EditArticle s) = "EditArticle " <> unwrap s
+  show (ShowArticle s) = "ShowArticle " <> unwrap s
+  show (Profile u) = "Profile " <> unwrap u
+  show (Favorites u) = "Favorites " <> unwrap u
+  show (NotFound url) = "Url not found: " <> unwrap url
 
 home :: Match Route
 home = Home <$ end
@@ -124,3 +130,7 @@ route f r =
   Parser.parse (decodeURIComponent >>> fromMaybe "") r
     # runMatch router
     # map f
+
+routeWith404 :: forall a. (Route -> a) -> String -> a
+routeWith404 f r = route f r
+                  # either (\_ -> f (NotFound (Url r))) identity

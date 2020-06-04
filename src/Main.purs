@@ -11,6 +11,7 @@ import Data.String.CodeUnits as Str
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
@@ -18,13 +19,16 @@ import Web.Event.EventTarget (eventListener, addEventListener) as DOM
 import Web.HTML (window) as DOM
 import Web.HTML.Event.HashChangeEvent as HCE
 import Web.HTML.Event.HashChangeEvent.EventTypes as HCET
+import Web.HTML.Location (hash) as DOM
+import Web.HTML.Window (location) as DOM
 import Web.HTML.Window as Window
 
 main :: Effect Unit
-main =
+main = do
+  url <- DOM.window >>= DOM.location >>= DOM.hash <#> dropHost
   HA.runHalogenAff do
     body <- HA.awaitBody
-    io <- runUI App.component unit body
+    io <- runUI App.component url body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
 -- taken from the Halogen examples 
@@ -40,6 +44,9 @@ hashChangeConsumer
   :: (forall a. App.Query a -> Aff (Maybe a))
   -> CR.Consumer HCE.HashChangeEvent Aff Unit
 hashChangeConsumer query = CR.consumer \event -> do
-  let hash = Str.drop 1 $ Str.dropWhile (_ /= '#') $ HCE.newURL event
+  let hash = dropHost $ HCE.newURL event
   void $ query $ H.tell $ App.ChangeRoute hash
   pure Nothing
+
+dropHost :: String -> String
+dropHost = Str.drop 1 <<< Str.dropWhile (_ /= '#')

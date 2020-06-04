@@ -2,10 +2,14 @@ module App where
 
 import Prelude
 
+import Control.Comonad (extract)
+import Data.Either (either)
 import Data.Either as E
+import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
+import Data.User (User)
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -16,15 +20,17 @@ import Pages.Article as Pages.Article
 import Pages.Authentication as Pages.Authentication
 import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
-import Pages.Profile (Input(..))
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
-import Router (Route(..), route)
+import Router (Route(..), route, routeWith404)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
+import Unsafe.Coerce (unsafeCoerce)
 
 type State
-  = { currentRoute :: Route }
+  = { currentRoute :: Route
+    , currentUser :: Maybe User
+    }
 
 data Action
   = Unit
@@ -38,6 +44,9 @@ type ChildSlots
     , profile :: Pages.Profile.Slot Unit
     )
 
+type Input
+  = String
+
 _homePage :: SProxy "homepage"
 _homePage = SProxy
 
@@ -47,7 +56,7 @@ _showArticle = SProxy
 _profile :: SProxy "profile"
 _profile = SProxy
 
-component :: forall i o m. MonadAff m => H.Component HH.HTML Query i o m
+component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
   H.mkComponent
     { initialState
@@ -55,8 +64,12 @@ component =
     , eval: H.mkEval $ H.defaultEval { handleAction = handleAction, handleQuery = handleQuery }
     }
 
-initialState :: forall i. i -> State
-initialState _ = { currentRoute: Home }
+initialState :: Input -> State
+initialState url = { currentRoute: initialRoute, currentUser: Nothing }
+  where
+  initialRoute :: Route
+  initialRoute =
+    routeWith404 identity url
 
 render :: forall m. MonadAff m => State -> H.ComponentHTML Action ChildSlots m
 render state =
@@ -75,8 +88,9 @@ showPage r s = case r of
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
-  Profile username -> HH.slot _profile unit Pages.Profile.component (Authored username) absurd
-  Favorites username -> HH.slot _profile unit Pages.Profile.component (Favorited username) absurd
+  Profile username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Authored username) absurd
+  Favorites username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Favorited username) absurd
+  NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> unwrap url <> ") doesn't exist!" ]
 
 handleAction ∷ forall o m. Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction _ = pure unit
@@ -95,14 +109,4 @@ handleQuery = case _ of
 
 log' :: Route -> Effect Unit
 log' =
-  log
-    <<< case _ of
-        Home -> "Home"
-        Login -> "Login"
-        Register -> "Register"
-        Settings -> "Settings"
-        NewArticle -> "New article"
-        EditArticle slug -> "Edit " <> unwrap slug
-        ShowArticle slug -> "Show " <> unwrap slug
-        Profile username -> "Profile " <> unwrap username
-        Favorites username -> "Favorites " <> unwrap username
+  log <<< show
