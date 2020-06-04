@@ -9,7 +9,7 @@ import Data.Article (Slug(..), Article)
 import Data.Bifunctor (lmap)
 import Data.Comment (Comment)
 import Data.Either (Either)
-import Data.Tag (Tag)
+import Data.Tag (Tag(..))
 import Data.User (Username(..), Profile)
 import Effect.Aff (Aff)
 
@@ -58,6 +58,9 @@ comments slug = article slug <> "comments/"
 userArticles :: Username -> String
 userArticles (Username u) = articles <> "?author=" <> u
 
+taggedArticles :: Tag -> String
+taggedArticles (Tag t) = articles <> "?tag=" <> t
+
 favorites :: Username -> String
 favorites (Username u) = articles <> "?favorited=" <> u
 
@@ -69,6 +72,9 @@ getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) arti
 
 getUserArticles :: Username -> Aff (Either String (Array Article))
 getUserArticles = userArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
+
+getTaggedArticles :: Tag -> Aff (Either String (Array Article))
+getTaggedArticles = taggedArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
 getFavorites :: Username -> Aff (Either String (Array Article))
 getFavorites = favorites >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article) 

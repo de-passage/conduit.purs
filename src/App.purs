@@ -2,14 +2,11 @@ module App where
 
 import Prelude
 
-import Control.Comonad (extract)
-import Data.Either (either)
 import Data.Either as E
-import Data.Identity (Identity(..))
+import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
-import Data.User (User)
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -25,12 +22,9 @@ import Pages.Settings as Pages.Settings
 import Router (Route(..), route, routeWith404)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
-import Unsafe.Coerce (unsafeCoerce)
 
 type State
-  = { currentRoute :: Route
-    , currentUser :: Maybe User
-    }
+  = GlobalState.State
 
 data Action
   = Unit
@@ -69,7 +63,10 @@ initialState url = { currentRoute: initialRoute, currentUser: Nothing }
   where
   initialRoute :: Route
   initialRoute =
-    routeWith404 identity url
+    if url == "" then
+      Home
+    else
+      routeWith404 identity url
 
 render :: forall m. MonadAff m => State -> H.ComponentHTML Action ChildSlots m
 render state =
@@ -81,7 +78,7 @@ render state =
 
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
 showPage r s = case r of
-  Home -> HH.slot _homePage unit Pages.Home.component unit absurd
+  Home -> HH.slot _homePage unit Pages.Home.component s absurd
   Login -> Pages.Authentication.render
   Register -> Pages.Authentication.render
   Settings -> Pages.Settings.render
