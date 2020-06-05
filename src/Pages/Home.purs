@@ -1,7 +1,6 @@
 module Pages.Home where
 
 import Prelude
-
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
@@ -50,6 +49,7 @@ type State
 
 data Action
   = Init
+  | Receive (Maybe User)
   | TabSelected Tab
   | PreventDefault Event (Maybe Action)
 
@@ -66,6 +66,7 @@ component =
           $ H.defaultEval
               { handleAction = handleAction
               , initialize = Just Init
+              , receive = Just <<< Receive <<< _.currentUser
               }
     }
 
@@ -176,7 +177,14 @@ handleAction ∷
   Action ->
   H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
-  Init -> parSequence_ [ loadArticles, loadTags ]
+  Init -> do
+    state <- H.gets _.currentUser
+    handleAction (Receive state)
+  Receive user ->
+    let
+      loadArts = maybe loadArticles loadPersonal user
+    in
+      parSequence_ [ loadArts, loadTags ]
   TabSelected tab -> do
     currentTab <- H.gets _.selected
     case tab of
@@ -190,9 +198,9 @@ handleAction = case _ of
       GlobalFeed -> case currentTab of
         GlobalFeed -> pure unit
         _ -> loadGlobal
-      PersonalFeed _ -> case currentTab of
+      PersonalFeed user -> case currentTab of
         PersonalFeed _ -> pure unit
-        _ -> loadPersonal
+        _ -> loadPersonal user
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
@@ -204,4 +212,4 @@ handleAction = case _ of
 
   loadTags = load API.getTags (\v -> _ { tags = v })
 
-  loadPersonal = pure unit
+  loadPersonal user = load (API.getFeed user.token) (\v -> _ { articles = v, selected = PersonalFeed user })
