@@ -1,26 +1,25 @@
 module Data.User
   ( Username(..)
-  , Email(..)
-  , Password(..)
+  , Email
+  , Password
   , Profile(..)
   , ProfileBase(..)
   , User(..)
   , Image
-  , Token
+  , module Token
   , storeUser
   , retrieveUser
   , fromImage
   , deleteStoredUser
-  , authorizationHeader
   ) where
 
 import Prelude
 
-import Affjax.RequestHeader as AJRH
 import Data.Argonaut as A
 import Data.Either (hush)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Token (Token) as Token
 import Effect (Effect)
 import Web.HTML as DOM
 import Web.HTML.Window (localStorage)
@@ -53,10 +52,19 @@ derive newtype instance encodeJsonPassword :: A.EncodeJson Password
 
 derive newtype instance decodeJsonPassword :: A.DecodeJson Password
 
+instance showEmail :: Show Email where
+  show = unwrap
+
+instance showPassword :: Show Password where
+  show = unwrap
+
+instance showUsername :: Show Username where
+  show = unwrap
+
 type User
   = ProfileBase
       ( email :: Email
-      , token :: Token
+      , token :: Token.Token
       )
 
 type Profile
@@ -68,13 +76,6 @@ type ProfileBase r
     , image :: Image
     | r
     }
-
-newtype Token
-  = Token String
-
-derive newtype instance encodeJsonToken :: A.EncodeJson Token
-
-derive newtype instance decodeJsonToken :: A.DecodeJson Token
 
 newtype Image
   = Image (Maybe String)
@@ -113,6 +114,3 @@ deleteStoredUser = do
   window <- DOM.window
   storage <- localStorage window
   removeItem userKey storage
-
-authorizationHeader :: Token -> AJRH.RequestHeader
-authorizationHeader (Token token) = AJRH.RequestHeader "Authorization" $ "Token " <> token

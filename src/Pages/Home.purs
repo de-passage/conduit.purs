@@ -9,7 +9,7 @@ import Data.Const (Const)
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
-import Data.Tag (Tag(..))
+import Data.Tag (Tag)
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
@@ -157,13 +157,13 @@ render state =
       ]
 
 tagLink :: forall w. Tag -> HH.HTML w Action
-tagLink tag@(Tag s) =
+tagLink tag =
   HH.a
     [ HP.href ""
     , HP.classes [ C.tagPill, C.tagDefault ]
     , HE.onClick (selectTag tag)
     ]
-    [ HH.text s ]
+    [ HH.text $ show tag ]
 
 selectTab :: Tab -> MouseEvent -> Maybe Action
 selectTab tab e = Just $ PreventDefault (toEvent e) $ Just $ TabSelected tab

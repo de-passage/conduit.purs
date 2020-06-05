@@ -1,16 +1,19 @@
-module Data.Article where 
-
-import Data.Newtype
+module Data.Article (Slug(..), Article(..)) where 
 
 import Data.Argonaut (class DecodeJson, class EncodeJson)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Tag (Tag)
 import Data.User (Profile)
+import Prelude (class Show)
 
 newtype Slug = Slug String
 
 derive instance newtypeSlug :: Newtype Slug _
 derive newtype instance decodeJsonSlug :: DecodeJson Slug
 derive newtype instance encodeJsonSlug :: EncodeJson Slug
+
+instance showSlug :: Show Slug where
+  show = unwrap
 
 type Article
   = { slug :: Slug

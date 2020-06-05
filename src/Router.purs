@@ -84,25 +84,25 @@ editArticle :: Match Route
 editArticle = EditArticle <$> (lit "editor" *> slug) <* end
 
 editArticleUrl :: Slug -> String
-editArticleUrl (Slug s) = "#/editor/" <> s <> "/"
+editArticleUrl s = "#/editor/" <> show s <> "/"
 
 showArticle :: Match Route
 showArticle = ShowArticle <$> (lit "article" *> slug) <* end
 
 showArticleUrl :: Slug -> String
-showArticleUrl (Slug s) = "#/article/" <> s <> "/"
+showArticleUrl s = "#/article/" <> show s <> "/"
 
 profile :: Match Route
 profile = Profile <$> (lit "profile" *> username) <* end
 
 profileUrl :: Username -> String
-profileUrl (Username user) = "#/profile/" <> user <> "/"
+profileUrl user = "#/profile/" <> show user <> "/"
 
 favorites :: Match Route
 favorites = Favorites <$> (lit "profile" *> username) <* lit "favorites" <* end
 
 favoritesUrl :: Username -> String
-favoritesUrl (Username user) = "#/profile/" <> user <> "/favorites/"
+favoritesUrl user = "#/profile/" <> show user <> "/favorites/"
 
 slug :: Match Slug
 slug = Slug <$> str
