@@ -9,7 +9,7 @@ import Data.Article (Article)
 import Data.Const (Const)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.User (Username, Profile)
+import Data.User (Profile, Username, fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -86,7 +86,7 @@ render state =
                     [ HH.div [ HP.class_ BS.container ]
                         [ HH.div [ HP.class_ BS.row ]
                             [ HH.div [ HP.classes [ C.colXs12, BS.colMd10, BS.offsetMd1 ] ]
-                                [ HH.img [ HP.src profile.image, HP.class_ C.userImg ]
+                                [ HH.img [ HP.src $ fromImage profile.image, HP.class_ C.userImg ]
                                 , HH.h4_ [ HH.text $ unwrap profile.username ]
                                 , HH.p_ [ HH.text $ fromMaybe "" profile.bio ]
                                 , HH.button [ HP.classes [ BS.btn, BS.btnOutlineSecondary, C.actionBtn ] ]

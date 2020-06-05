@@ -1,6 +1,7 @@
 module Pages.Article where
 
 import Prelude
+
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
@@ -9,6 +10,7 @@ import Data.Comment (Comment)
 import Data.Const (Const)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
+import Data.User (fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -121,7 +123,7 @@ articleMeta :: forall w i. Article -> HH.HTML w i
 articleMeta article =
   HH.div [ HP.class_ C.articleMeta ]
     [ HH.a [ HP.href (profileUrl article.author.username) ]
-        [ HH.img [ HP.src article.author.image ] ]
+        [ HH.img [ HP.src $ fromImage article.author.image ] ]
     , HH.div [ HP.class_ C.info ]
         [ HH.a [ HP.href (profileUrl article.author.username), HP.class_ C.author ] [ HH.text $ unwrap article.author.username ]
         , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
@@ -153,7 +155,7 @@ comments = case _ of
           ]
       , HH.div [ HP.class_ BS.cardFooter ]
           [ HH.a [ HP.href (profileUrl comment.author.username), HP.class_ C.commentAuthor ]
-              [ HH.img [ HP.src comment.author.image, HP.class_ C.commentAuthorImg ]
+              [ HH.img [ HP.src $ fromImage comment.author.image, HP.class_ C.commentAuthorImg ]
               ]
           , HH.text " "
           , HH.a [ HP.href (profileUrl comment.author.username), HP.class_ C.commentAuthor ]

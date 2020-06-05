@@ -1,18 +1,23 @@
 module Pages.Authentication where
 
 import Prelude
+
 import API as API
 import Classes as C
 import Data.Const (Const)
+import Data.Either (Either, either)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (sequence)
+import Data.User (User, storeUser)
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class.Console (log)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Router (loginUrl, registerUrl)
+import Unsafe.Coerce (unsafeCoerce)
 
 type Query
   = Const Void
@@ -127,7 +132,15 @@ handleAction = case _ of
     state <- H.get
     case state.action of
       Login -> case sequence [ state.email, state.password ] of
-        Just [ email, password ] -> pure unit
+        Just [ email, password ] -> 
+          do 
+            user <- login email password
+            H.liftEffect $ log $ unsafeCoerce user
+            either
+              (H.modify_ <<< (\v -> _ { errorMessages = [ v ]}))
+              (H.liftEffect <<< storeUser)
+              user
+          
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
         Just [ name, email, password ] -> pure unit
@@ -135,3 +148,7 @@ handleAction = case _ of
   NameChanged name -> H.modify_ _ { name = Just name }
   EmailChanged email -> H.modify_ _ { email = Just email }
   PasswordChanged password -> H.modify_ _ { password = Just password }
+
+  where 
+    login :: String -> String -> H.HalogenM State Action ChildSlots o m (Either String User)
+    login email password = H.liftAff $ API.login { email, password }

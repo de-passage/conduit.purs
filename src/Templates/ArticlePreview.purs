@@ -4,6 +4,7 @@ import Prelude
 import Classes as C
 import Data.Article (Article)
 import Data.Newtype (unwrap)
+import Data.User (fromImage)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
@@ -18,7 +19,7 @@ render article =
   in
     HH.div [ HP.class_ C.articlePreview ]
       [ HH.div [ HP.class_ C.articleMeta ]
-          [ HH.a [ HP.href userUrl ] [ HH.img [ HP.src article.author.image ] ]
+          [ HH.a [ HP.href userUrl ] [ HH.img [ HP.src $ fromImage article.author.image ] ]
           , HH.div [ HP.class_ C.info ]
               [ HH.a [ HP.href userUrl, HP.class_ C.author ] [ HH.text username ]
               , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]

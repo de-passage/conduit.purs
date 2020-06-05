@@ -1,7 +1,6 @@
 module API where
 
 import Prelude
-
 import Affjax as AJ
 import Affjax.RequestBody as AJRB
 import Affjax.ResponseFormat as AJRF
@@ -36,6 +35,12 @@ type CommentsResponse
 
 type TagsResponse
   = { tags :: Array Tag }
+
+type UserResponse
+  = { user :: User }
+
+type DecodedResponse a
+  = Either String a
 
 root :: String
 root = "https://conduit.productionready.io/api/"
@@ -73,48 +78,54 @@ taggedArticles (Tag t) = articles <> "?tag=" <> t
 favorites :: Username -> String
 favorites (Username u) = articles <> "?favorited=" <> u
 
-getArticle :: Slug -> Aff (Either String Article)
+getArticle :: Slug -> Aff (DecodedResponse Article)
 getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (article s)
 
-getArticles :: Aff (Either String (Array Article))
+getArticles :: Aff (DecodedResponse (Array Article))
 getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) articles
 
-getUserArticles :: Username -> Aff (Either String (Array Article))
+getUserArticles :: Username -> Aff (DecodedResponse (Array Article))
 getUserArticles = userArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
-getTaggedArticles :: Tag -> Aff (Either String (Array Article))
+getTaggedArticles :: Tag -> Aff (DecodedResponse (Array Article))
 getTaggedArticles = taggedArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
-getFavorites :: Username -> Aff (Either String (Array Article))
+getFavorites :: Username -> Aff (DecodedResponse (Array Article))
 getFavorites = favorites >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
 
-getProfile :: Username -> Aff (Either String Profile)
+getProfile :: Username -> Aff (DecodedResponse Profile)
 getProfile u = getFromApi' (_.profile :: ProfileResponse -> Profile) (profile u)
 
-getTags :: Aff (Either String (Array Tag))
+getTags :: Aff (DecodedResponse (Array Tag))
 getTags = getFromApi' (_.tags :: TagsResponse -> Array Tag) tags
 
-getComments :: Slug -> Aff (Either String (Array Comment))
+getComments :: Slug -> Aff (DecodedResponse (Array Comment))
 getComments slug = getFromApi' (_.comments :: CommentsResponse -> Array Comment) (comments slug)
 
-postToApi :: forall a. A.DecodeJson a => String -> Maybe AJRB.RequestBody -> Aff (Either String a)
-postToApi s r = AJ.post AJRF.json s r <#> fromApiResponse
+login :: { email :: String, password :: String } -> Aff (DecodedResponse User)
+login user = postToApi' (_.user :: UserResponse -> User) loginUrl { user }
 
-login :: forall a. A.DecodeJson a => { email::String, password::String } -> Aff (Either String User)
-login = postToApi loginUrl <<< Just <<< AJRB.Json <<< A.encodeJson
-
-fromApiResponse :: forall a. A.DecodeJson a => Either AJ.Error (AJ.Response A.Json) -> Either String a
+fromApiResponse :: forall a. A.DecodeJson a => Either AJ.Error (AJ.Response A.Json) -> DecodedResponse a
 fromApiResponse a = do
   resp <- lmap AJ.printError a
   A.decodeJson resp.body
 
-getFromApi :: forall a. A.DecodeJson a => String -> Aff (Either String a)
-getFromApi s = getJson s <#> fromApiResponse
+postToApi :: forall a. A.DecodeJson a => String -> Maybe AJRB.RequestBody -> Aff (DecodedResponse a)
+postToApi s r = AJ.post AJRF.json s r <#> fromApiResponse
 
-getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> String -> Aff (Either String b)
+postToApi' ::
+  forall resp ret req.
+  A.DecodeJson resp =>
+  A.EncodeJson req =>
+  (resp -> ret) -> String -> req -> Aff (DecodedResponse ret)
+postToApi' f s r = do
+  resp <- postToApi s $ Just $ AJRB.Json $ A.encodeJson r
+  pure (f <$> resp)
+
+getFromApi :: forall a. A.DecodeJson a => String -> Aff (DecodedResponse a)
+getFromApi s = AJ.get AJRF.json s <#> fromApiResponse
+
+getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> String -> Aff (DecodedResponse b)
 getFromApi' f url = do
   resp <- getFromApi url
   pure (f <$> resp)
-
-getJson :: String -> Aff (Either AJ.Error (AJ.Response A.Json))
-getJson = AJ.get AJRF.json
