@@ -7,7 +7,7 @@ import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
-import Data.User (deleteStoredUser, retrieveUser)
+import Data.User (User, deleteStoredUser, retrieveUser, storeUser)
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -30,6 +30,8 @@ type State
 data Action
   = Initialize
   | LogOut
+  | LogIn User
+  | Redirect String
 
 data Query a
   = ChangeRoute String a
@@ -91,8 +93,8 @@ render state =
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
 showPage r s = case r of
   Home -> HH.slot _homePage unit Pages.Home.component s absurd
-  Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login absurd
-  Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register absurd
+  Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login handleAuthenticationMessages
+  Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register handleAuthenticationMessages
   Settings -> Pages.Settings.render
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
@@ -100,6 +102,7 @@ showPage r s = case r of
   Profile username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Authored username) absurd
   Favorites username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Favorited username) absurd
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> unwrap url <> ") doesn't exist!" ]
+
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction =
@@ -110,6 +113,10 @@ handleAction =
     LogOut -> do
       H.liftEffect deleteStoredUser
       H.modify_ (_ { currentUser = Nothing})
+    LogIn user -> do
+      H.liftEffect $ storeUser user
+      H.modify_ (_ { currentUser = Just user } )
+    Redirect url -> pure unit
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -125,3 +132,8 @@ handleQuery = case _ of
 
 log' :: Route -> Effect Unit
 log' = log <<< show
+
+handleAuthenticationMessages :: Pages.Authentication.Output -> Maybe Action
+handleAuthenticationMessages = Just <<< 
+  case _ of
+    Pages.Authentication.LoginPerformed user -> LogIn user

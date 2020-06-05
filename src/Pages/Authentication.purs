@@ -8,7 +8,7 @@ import Data.Const (Const)
 import Data.Either (Either, either)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (sequence)
-import Data.User (User, storeUser)
+import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -20,8 +20,8 @@ import Router (loginUrl, registerUrl)
 type Query
   = Const Void
 
-type Output
-  = Void
+data Output
+  = LoginPerformed User
 
 type Slot
   = H.Slot Query Output
@@ -126,10 +126,10 @@ render state =
           $ HH.a [ HP.href loginUrl ] [ HH.text "Have an account already?" ]
 
 handleAction ∷
-  forall o m.
+  forall m.
   MonadAff m =>
   Action ->
-  H.HalogenM State Action ChildSlots o m Unit
+  H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   ActionChanged action -> H.modify_ (_ { action = action })
   PostRequest -> do
@@ -140,7 +140,7 @@ handleAction = case _ of
           user <- login email password
           user # either
             (H.modify_ <<< (\v -> _ { errorMessages = [ v ] }))
-            (H.liftEffect <<< storeUser)
+            (H.raise <<< LoginPerformed)
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
         Just [ name, email, password ] -> pure unit
@@ -149,5 +149,5 @@ handleAction = case _ of
   EmailChanged email -> H.modify_ _ { email = Just email }
   PasswordChanged password -> H.modify_ _ { password = Just password }
   where
-  login :: String -> String -> H.HalogenM State Action ChildSlots o m (Either String User)
+  login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either String User)
   login email password = H.liftAff $ API.login { email, password }
