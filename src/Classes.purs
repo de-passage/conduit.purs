@@ -136,3 +136,6 @@ actionBtn = HH.ClassName "action-button"
 
 articleToggle :: HH.ClassName
 articleToggle = HH.ClassName "article-toggle"
+
+attribution :: HH.ClassName
+attribution = HH.ClassName "attribution"

@@ -1,7 +1,6 @@
 module App where
 
 import Prelude
-
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
@@ -41,6 +40,7 @@ type ChildSlots
     , showArticle :: Pages.Article.Slot Unit
     , profile :: Pages.Profile.Slot Unit
     , authentication :: Pages.Authentication.Slot Unit
+    , settings :: Pages.Settings.Slot Unit
     )
 
 type Input
@@ -57,6 +57,9 @@ _profile = SProxy
 
 _authentication :: SProxy "authentication"
 _authentication = SProxy
+
+_settings :: SProxy "settings"
+_settings = SProxy
 
 component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
@@ -85,38 +88,44 @@ initialState url = { currentRoute: initialRoute, currentUser: Nothing }
 render :: forall m. MonadAff m => State -> H.ComponentHTML Action ChildSlots m
 render state =
   HH.div_
-    [ Navbar.render
+    [ Navbar.render state.currentUser
     , showPage state.currentRoute state
     , Footer.render
     ]
 
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
 showPage r s = case r of
-  Home -> HH.slot _homePage unit Pages.Home.component s absurd
+  Home -> home
   Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login handleAuthenticationMessages
   Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register handleAuthenticationMessages
-  Settings -> Pages.Settings.render
+  Settings -> authenticated settings home
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
   Profile username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Authored username) absurd
   Favorites username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Favorited username) absurd
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> unwrap url <> ") doesn't exist!" ]
+  where
+  authenticated a b = case s.currentUser of
+    Just user -> a user
+    Nothing -> b
 
+  settings user = HH.slot _settings unit Pages.Settings.component user handleSettingsMessages
+
+  home = HH.slot _homePage unit Pages.Home.component s absurd
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
-handleAction =
-  case _ of
-    Initialize -> do
-      user <- H.liftEffect retrieveUser
-      H.modify_ (_ { currentUser = user})
-    LogOut -> do
-      H.liftEffect deleteStoredUser
-      H.modify_ (_ { currentUser = Nothing})
-    LogIn user -> do
-      H.liftEffect $ storeUser user
-      H.modify_ (_ { currentUser = Just user } )
-    Redirect url -> pure unit
+handleAction = case _ of
+  Initialize -> do
+    user <- H.liftEffect retrieveUser
+    H.modify_ (_ { currentUser = user })
+  LogOut -> do
+    H.liftEffect deleteStoredUser
+    H.modify_ (_ { currentUser = Nothing, currentRoute = Home })
+  LogIn user -> do
+    H.liftEffect $ storeUser user
+    H.modify_ (_ { currentUser = Just user, currentRoute = Home })
+  Redirect url -> pure unit
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -134,6 +143,14 @@ log' :: Route -> Effect Unit
 log' = log <<< show
 
 handleAuthenticationMessages :: Pages.Authentication.Output -> Maybe Action
-handleAuthenticationMessages = Just <<< 
-  case _ of
-    Pages.Authentication.LoginPerformed user -> LogIn user
+handleAuthenticationMessages =
+  Just
+    <<< case _ of
+        Pages.Authentication.LoginPerformed user -> LogIn user
+
+handleSettingsMessages :: Pages.Settings.Output -> Maybe Action
+handleSettingsMessages =
+  Just
+    <<< case _ of
+        Pages.Settings.LogOutRequested -> LogOut
+        Pages.Settings.UserUpdated user -> LogIn user

@@ -1,8 +1,10 @@
 module API where
 
 import Prelude
+
 import Affjax as AJ
 import Affjax.RequestBody as AJRB
+import Affjax.RequestHeader as AJRH
 import Affjax.ResponseFormat as AJRF
 import Data.Argonaut as A
 import Data.Article (Slug(..), Article)
@@ -10,8 +12,9 @@ import Data.Bifunctor (lmap)
 import Data.Comment (Comment)
 import Data.Either (Either)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Tag (Tag(..))
-import Data.User (Profile, Username(..), User)
+import Data.User (Profile, Token, User, Username(..), authorizationHeader)
 import Effect.Aff (Aff)
 
 type ProfileResponse
@@ -65,6 +68,9 @@ comments slug = article slug <> "comments/"
 
 users :: String
 users = root <> "users/"
+
+feed :: String
+feed = articles <> "feed/"
 
 loginUrl :: String
 loginUrl = users <> "login/"
@@ -129,3 +135,15 @@ getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> String -> Aff (DecodedR
 getFromApi' f url = do
   resp <- getFromApi url
   pure (f <$> resp)
+
+getFeed :: Token -> Aff (DecodedResponse (Array Article))
+getFeed token = do
+  resp <-
+    AJ.request
+      $ AJ.defaultRequest
+          { url = feed
+          , headers = [ authorizationHeader token ]
+          , responseFormat = AJRF.json
+          }
+  let decoded = (fromApiResponse resp :: DecodedResponse (Array Article))
+  pure decoded

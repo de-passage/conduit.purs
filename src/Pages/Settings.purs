@@ -10,10 +10,12 @@ import Data.User (Email(..), Image, User, fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Utils as Utils
 import Web.Event.Event (Event, preventDefault)
+import Web.UIEvent.MouseEvent (toEvent)
 
 type Input
   = User
@@ -120,6 +122,9 @@ render state =
                             [ HH.text "Update Settings"
                             ]
                         ]
+                        , HH.button [ HP.classes [ BS.btn, BS.btnOutlineDanger ]
+                            , HE.onClick \e -> Just (PreventDefault (toEvent e) (Just LogOut)) ]
+                            [ HH.text "Log out"]
                     ]
                 ]
             ]

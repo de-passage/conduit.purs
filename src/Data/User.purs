@@ -11,10 +11,12 @@ module Data.User
   , retrieveUser
   , fromImage
   , deleteStoredUser
+  , authorizationHeader
   ) where
 
 import Prelude
 
+import Affjax.RequestHeader as AJRH
 import Data.Argonaut as A
 import Data.Either (hush)
 import Data.Maybe (Maybe(..))
@@ -111,3 +113,6 @@ deleteStoredUser = do
   window <- DOM.window
   storage <- localStorage window
   removeItem userKey storage
+
+authorizationHeader :: Token -> AJRH.RequestHeader
+authorizationHeader (Token token) = AJRH.RequestHeader "Authorization" $ "Token " <> token
