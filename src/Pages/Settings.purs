@@ -1,12 +1,79 @@
 module Pages.Settings where
 
+import Prelude
+
 import Classes as C
+import Data.Const (Const)
+import Data.Maybe (Maybe(..), maybe)
+import Data.Newtype (unwrap)
+import Data.User (Email(..), Image, User, fromImage)
+import Effect.Aff.Class (class MonadAff)
+import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Utils as Utils
+import Web.Event.Event (Event, preventDefault)
 
-render :: forall w i. HH.HTML w i
-render =
+type Input
+  = User
+
+data Output
+  = LogOutRequested
+  | UserUpdated User
+
+data Action
+  = ChangeBio String
+  | ChangeName String
+  | ChangePicture String
+  | ChangePassword String
+  | ChangeEmail String
+  | UpdateSettings
+  | LogOut
+  | PreventDefault Event (Maybe Action)
+
+type Query
+  = Const Void
+
+type State
+  = { currentUser :: User
+    , editedUser ::
+        { bio :: Maybe String
+        , email :: Maybe String
+        , password :: Maybe String
+        , image :: Maybe String
+        , username :: Maybe String
+        }
+    }
+
+type ChildSlots
+  = ()
+
+type Slot
+  = H.Slot Query Output
+
+component :: forall m q. MonadAff m => H.Component HH.HTML q Input Output m
+component =
+  H.mkComponent
+    { initialState
+    , render
+    , eval: H.mkEval $ H.defaultEval { handleAction = handleAction }
+    }
+  where
+  initialState :: Input -> State
+  initialState currentUser =
+    { currentUser
+    , editedUser:
+        { bio: Nothing
+        , username: Nothing
+        , email: Nothing
+        , image: Nothing
+        , password: Nothing
+        }
+    }
+
+render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
+render state =
   HH.div [ HP.class_ C.settingsPage ]
     [ HH.div [ HP.classes [ BS.container, C.page ] ]
         [ HH.div [ HP.class_ BS.row ]
@@ -58,3 +125,15 @@ render =
             ]
         ]
     ]
+
+handleAction :: forall m. MonadAff m => Action -> H.HalogenM State Action ChildSlots Output m Unit
+handleAction = case _ of
+  ChangeEmail str -> H.modify_ _ { editedUser { email = Just str } }
+  ChangeBio str -> H.modify_ _ { editedUser { bio = Just str } }
+  ChangePicture str -> H.modify_ _ { editedUser { image = Just str } }
+  ChangeName str -> H.modify_ _ { editedUser { username = Just str } }
+  ChangePassword str -> H.modify_ _ { editedUser { password = Just str } }
+  LogOut -> H.raise LogOutRequested
+  PreventDefault event action -> Utils.preventDefault event action handleAction
+  UpdateSettings ->
+    pure unit

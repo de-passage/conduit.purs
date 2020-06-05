@@ -1,20 +1,18 @@
 module Pages.Home where
 
 import Prelude
+
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import DOM.HTML.Indexed (MouseEvents)
 import Data.Article (Article)
 import Data.Const (Const)
 import Data.GlobalState as GlobalState
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Tag (Tag(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class.Console (log)
-import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -22,7 +20,8 @@ import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
 import Templates.ArticlePreview as ArticlePreview
-import Web.Event.Event (Event, preventDefault)
+import Utils as Utils
+import Web.Event.Event (Event)
 import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 
 type Query
@@ -165,10 +164,10 @@ tagLink tag@(Tag s) =
     ]
     [ HH.text s ]
 
-selectTab :: forall w. Tab -> MouseEvent -> Maybe Action
+selectTab :: Tab -> MouseEvent -> Maybe Action
 selectTab tab e = Just $ PreventDefault (toEvent e) $ Just $ TabSelected tab
 
-selectTag :: forall w. Tag -> MouseEvent -> Maybe Action
+selectTag :: Tag -> MouseEvent -> Maybe Action
 selectTag tag = selectTab $ TagFeed tag
 
 handleAction ∷
@@ -195,8 +194,7 @@ handleAction = case _ of
         PersonalFeed _ -> pure unit
         _ -> loadPersonal
   PreventDefault event action -> do
-    liftEffect $ preventDefault event
-    maybe (pure unit) handleAction action
+    Utils.preventDefault event action handleAction
   where
   loadArticles = load API.getArticles (\v -> _ { articles = v })
 
