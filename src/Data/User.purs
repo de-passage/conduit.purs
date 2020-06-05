@@ -10,6 +10,7 @@ module Data.User
   , storeUser
   , retrieveUser
   , fromImage
+  , deleteStoredUser
   ) where
 
 import Prelude
@@ -21,7 +22,7 @@ import Data.Newtype (class Newtype)
 import Effect (Effect)
 import Web.HTML as DOM
 import Web.HTML.Window (localStorage)
-import Web.Storage.Storage (getItem, setItem)
+import Web.Storage.Storage (getItem, removeItem, setItem)
 
 newtype Username
   = Username String
@@ -104,3 +105,9 @@ retrieveUser = do
           jsonUser <- hush $ A.jsonParser rawUser 
           hush $ A.decodeJson jsonUser
   pure decoded
+
+deleteStoredUser :: Effect Unit
+deleteStoredUser = do
+  window <- DOM.window
+  storage <- localStorage window
+  removeItem userKey storage

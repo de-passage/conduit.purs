@@ -7,6 +7,7 @@ import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
+import Data.User (deleteStoredUser, retrieveUser)
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -27,7 +28,8 @@ type State
   = GlobalState.State
 
 data Action
-  = Unit
+  = Initialize
+  | LogOut
 
 data Query a
   = ChangeRoute String a
@@ -59,7 +61,13 @@ component =
   H.mkComponent
     { initialState
     , render
-    , eval: H.mkEval $ H.defaultEval { handleAction = handleAction, handleQuery = handleQuery }
+    , eval:
+        H.mkEval
+          $ H.defaultEval
+              { handleAction = handleAction
+              , handleQuery = handleQuery
+              , initialize = Just Initialize
+              }
     }
 
 initialState :: Input -> State
@@ -93,8 +101,15 @@ showPage r s = case r of
   Favorites username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Favorited username) absurd
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> unwrap url <> ") doesn't exist!" ]
 
-handleAction ∷ forall o m. Action → H.HalogenM State Action ChildSlots o m Unit
-handleAction _ = pure unit
+handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
+handleAction =
+  case _ of
+    Initialize -> do
+      user <- H.liftEffect retrieveUser
+      H.modify_ (_ { currentUser = user})
+    LogOut -> do
+      H.liftEffect deleteStoredUser
+      H.modify_ (_ { currentUser = Nothing})
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -109,5 +124,4 @@ handleQuery = case _ of
     pure (Just a)
 
 log' :: Route -> Effect Unit
-log' =
-  log <<< show
+log' = log <<< show
