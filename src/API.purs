@@ -145,5 +145,5 @@ getFeed token = do
           , headers = [ authorizationHeader token ]
           , responseFormat = AJRF.json
           }
-  let decoded = (fromApiResponse resp :: DecodedResponse (Array Article))
-  pure decoded
+  let decoded = (fromApiResponse resp :: DecodedResponse ArticlesResponse)
+  pure (_.articles <$> decoded)

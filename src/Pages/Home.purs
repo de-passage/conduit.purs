@@ -184,7 +184,10 @@ handleAction = case _ of
     let
       loadArts = maybe loadArticles loadPersonal user
     in
-      parSequence_ [ loadArts, loadTags ]
+      do 
+        Utils.unsafeLog user
+        H.modify_ (_ { currentUser = user })
+        parSequence_ [ loadArts, loadTags ]
   TabSelected tab -> do
     currentTab <- H.gets _.selected
     case tab of

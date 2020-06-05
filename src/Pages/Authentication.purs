@@ -1,12 +1,13 @@
 module Pages.Authentication where
 
 import Prelude
+
 import API as API
 import Classes as C
 import Data.Array (snoc)
 import Data.Const (Const)
 import Data.Either (Either, either)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Traversable (sequence)
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
@@ -16,6 +17,9 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Router (loginUrl, registerUrl)
+import Utils as Utils
+import Web.Event.Event (Event)
+import Web.UIEvent.MouseEvent (toEvent)
 
 type Query
   = Const Void
@@ -44,6 +48,7 @@ data Action
   | EmailChanged String
   | NameChanged String
   | PasswordChanged String
+  | PreventDefault Event (Maybe Action)
 
 type ChildSlots
   = ()
@@ -73,7 +78,7 @@ initialState action =
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    fieldset input placeholder action =
+    fieldset input placeholder action value =
       HH.fieldset [ HP.class_ BS.formGroup ]
         [ HH.input
             [ HP.classes [ BS.formControl, BS.formControlLg ]
@@ -81,19 +86,20 @@ render state =
             , HP.placeholder placeholder
             , HE.onValueChange (Just <<< action)
             , HP.id_ placeholder
+            , HP.value value
             ]
         ]
 
-    namefield = fieldset HP.InputText "Name" NameChanged
+    namefield = fieldset HP.InputText "Name" NameChanged $ fromMaybe "" state.name
 
-    emailfield = fieldset HP.InputEmail "Email" EmailChanged
+    emailfield = fieldset HP.InputEmail "Email" EmailChanged $ fromMaybe "" state.email
 
-    passwordfield = fieldset HP.InputPassword "Password" PasswordChanged
+    passwordfield = fieldset HP.InputPassword "Password" PasswordChanged $ fromMaybe "" state.password
 
     button text =
       HH.button
         [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
-        , HE.onClick (\_ -> Just PostRequest)
+        , HE.onClick (\e -> Just $ PreventDefault (toEvent e) $ Just PostRequest)
         ]
         [ HH.text text
         ]
@@ -133,13 +139,13 @@ handleAction ∷
 handleAction = case _ of
   ActionChanged action -> H.modify_ (_ { action = action })
   PostRequest -> do
-    state <- H.modify (_ { errorMessages = [] })
+    state <- H.get
     case state.action of
       Login -> case sequence [ state.email, state.password ] of
         Just [ email, password ] -> do
           user <- login email password
           user # either
-            (H.modify_ <<< (\v -> _ { errorMessages = [ v ] }))
+            (\v -> H.modify_  _ { errorMessages = [ v ] })
             (H.raise <<< LoginPerformed)
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
@@ -148,6 +154,8 @@ handleAction = case _ of
   NameChanged name -> H.modify_ _ { name = Just name }
   EmailChanged email -> H.modify_ _ { email = Just email }
   PasswordChanged password -> H.modify_ _ { password = Just password }
+  PreventDefault event action ->
+    Utils.preventDefault event action handleAction
   where
   login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either String User)
   login email password = H.liftAff $ API.login { email, password }
