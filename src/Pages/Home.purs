@@ -184,9 +184,7 @@ handleAction = case _ of
     let
       loadArts = maybe loadArticles loadPersonal user
     in
-      do 
-        Utils.unsafeLog user
-        H.modify_ (_ { currentUser = user })
+      do
         parSequence_ [ loadArts, loadTags ]
   TabSelected tab -> do
     currentTab <- H.gets _.selected
@@ -215,4 +213,12 @@ handleAction = case _ of
 
   loadTags = load API.getTags (\v -> _ { tags = v })
 
-  loadPersonal user = load (API.getFeed user.token) (\v -> _ { articles = v, selected = PersonalFeed user })
+  loadPersonal user =
+    load (API.getFeed user.token)
+      ( \v ->
+          _
+            { articles = v
+            , selected = PersonalFeed user
+            , currentUser = Just user
+            }
+      )

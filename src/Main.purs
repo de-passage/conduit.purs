@@ -8,6 +8,7 @@ import Control.Coroutine.Aff as CRA
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits as Str
+import Data.User as User
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -26,9 +27,10 @@ import Web.HTML.Window as Window
 main :: Effect Unit
 main = do
   url <- DOM.window >>= DOM.location >>= DOM.hash <#> dropHost
+  user <- User.retrieveUser
   HA.runHalogenAff do
     body <- HA.awaitBody
-    io <- runUI App.component url body
+    io <- runUI App.component { url, user } body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
 -- taken from the Halogen examples 

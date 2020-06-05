@@ -27,8 +27,7 @@ type State
   = GlobalState.State
 
 data Action
-  = Initialize
-  | LogOut
+  = LogOut
   | LogIn User
   | Redirect String
 
@@ -44,7 +43,9 @@ type ChildSlots
     )
 
 type Input
-  = String
+  = { url :: String
+    , user :: Maybe User
+    }
 
 _homePage :: SProxy "homepage"
 _homePage = SProxy
@@ -71,12 +72,11 @@ component =
           $ H.defaultEval
               { handleAction = handleAction
               , handleQuery = handleQuery
-              , initialize = Just Initialize
               }
     }
 
 initialState :: Input -> State
-initialState url = { currentRoute: initialRoute, currentUser: Nothing }
+initialState { url, user } = { currentRoute: initialRoute, currentUser: user }
   where
   initialRoute :: Route
   initialRoute =
@@ -116,9 +116,6 @@ showPage r s = case r of
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
-  Initialize -> do
-    user <- H.liftEffect retrieveUser
-    H.modify_ (_ { currentUser = user })
   LogOut -> do
     H.liftEffect deleteStoredUser
     H.modify_ (_ { currentUser = Nothing, currentRoute = Home })
