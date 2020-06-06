@@ -1,6 +1,7 @@
 module API.Endpoint.Core where
 
 import Prelude
+
 import Affjax as AJ
 import Affjax.RequestBody as AJRB
 import Affjax.ResponseFormat as AJRF
@@ -87,8 +88,7 @@ create ::
   Endpoint payload auth response -> Url.Url -> Method -> Record payload -> result
 create description url method payload = defaultRequest url method payload # addAuth (auth description)
 
-create_ ::
-  forall auth response result.
+create_ :: forall auth response result.
   AddAuthentication auth result =>
-  Endpoint () auth response -> Url.Url -> Method -> result
+  Endpoint () auth response -> Url.Url -> Method ->  result
 create_ d u m = create d u m {}

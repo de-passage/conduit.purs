@@ -3,6 +3,7 @@ module API.Endpoint where
 --import Prelude
 import Prelude
 import API.Response as R
+import API.Endpoint.Descriptions as D
 import API.Url as Url
 import API.Endpoint.Core as C
 import Affjax as AJ
@@ -25,40 +26,14 @@ type ResponseBody r
 type EndpointResponse a
   = AJ.Response A.Json
 
-type LoginPayload
-  = ( email :: String, password :: String )
+login :: Record D.LoginPayload -> C.Request
+login = C.create D.login Url.login POST
 
-loginE = C.EProxy :: C.Endpoint LoginPayload C.None R.UserResponse
-
-type RegistrationPayload
-  = ( email :: String, password :: String, name :: String )
-
-registerE = C.EProxy :: C.Endpoint RegistrationPayload C.None R.UserResponse
-
--- payload :: forall payload auth resp. Endpoint payload auth resp -> RProxy payload
--- payload _ = RProxy
-
-
-login :: Record LoginPayload -> C.Request
-login = C.create loginE Url.login POST
-
-registation :: Record RegistrationPayload -> C.Request
-registation = C.create registerE Url.register POST
+registation :: Record D.RegistrationPayload -> C.Request
+registation = C.create D.register Url.register POST
 
 tags :: C.Request
-tags = C.create_ (C.describe C.noPayload C.noAuth R.tags) Url.tags GET
+tags = C.create_ D.tags Url.tags GET
 
-slug :: Slug -> Maybe T.Token -> C.Request
-slug s = C.create_ (C.describe C.noPayload C.authOptional R.article) (Url.article s) GET
- {- 
-class AddPayload (payload :: # Type) func | func -> payload
-
-instance addNoPayload :: AddPayload () Request
-
-instance addGenericPayload :: (A.EncodeJson (Record p)) => AddPayload p (Record p -> Request)
-
-withPayload :: forall p m. Monad m => (A.EncodeJson (Record p)) => RProxy p -> m Request -> m (Record p -> Request)
-withPayload _ r = do
-  (Request req) <- r
-  pure \record -> Request $ req { content = Just $ AJRB.Json $ A.encodeJson record }
--}
+article :: Slug -> Maybe T.Token -> C.Request
+article s = C.create_ D.article (Url.article s) GET

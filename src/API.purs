@@ -62,39 +62,3 @@ postToApi' ::
 postToApi' f s r = do
   resp <- postToApi (show s) $ Just $ AJRB.Json $ A.encodeJson r
   pure (f <$> resp)
-
-getFromApi :: forall a. A.DecodeJson a => E.Endpoint -> Aff (DecodedResponse a)
-getFromApi s = AJ.get AJRF.json (show s) <#> fromApiResponse
-
-getFromApi' :: forall a b. A.DecodeJson a => (a -> b) -> E.Endpoint -> Aff (DecodedResponse b)
-getFromApi' f url = do
-  resp <- getFromApi url
-  pure (f <$> resp)
-
-getFeed :: Token -> Aff (DecodedResponse (Array Article))
-getFeed token = do
-  resp <-
-    AJ.request
-      $ AJ.defaultRequest
-          { url = show E.feed
-          , headers = [ authorizationHeader token ]
-          , responseFormat = AJRF.json
-          }
-  let decoded = (fromApiResponse resp :: DecodedResponse ArticlesResponse)
-  pure (_.articles <$> decoded)
-
-type APIRequest =
-  { token :: Maybe Token
-  , method :: HTTP.Method
-  , url :: E.Url
-  } 
-
-apiRequest :: APIRequest -> Aff (Either AJ.Error (AJ.Response A.Json))
-apiRequest { token, method, url } =
-    AJ.request
-      $ AJ.defaultRequest
-          { url = show url
-          , method = Left method
-          , headers = maybe [] (\t -> [ authorizationHeader t ]) token
-          , responseFormat = AJRF.json
-          }
