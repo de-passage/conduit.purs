@@ -61,7 +61,7 @@ type ArticleEditionPayload
         { title :: Maybe String
         , description :: Maybe String
         , body :: Maybe String
-        , tagList :: Maybe (Array String)
+        -- , tagList :: Maybe (Array String) -- can't edit the tag list apparently
         }
     )
 

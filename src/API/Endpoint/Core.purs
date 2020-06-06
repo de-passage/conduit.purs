@@ -15,10 +15,10 @@ import API.Url as Url
 import Type.Data.Row (RProxy(..))
 import Type.Proxy (Proxy)
 
-newtype Request
+newtype Request a
   = Request (AJ.Request A.Json)
 
-derive instance newtypeRequest :: Newtype Request _
+derive instance newtypeRequest :: Newtype (Request a) _
 
 foreign import kind AuthRequirement
 
@@ -57,21 +57,21 @@ describe _ _ _ = EProxy
 auth :: forall payload auth resp. Endpoint payload auth resp -> AuthProxy auth
 auth _ = AuthProxy
 
-class AddAuthentication (auth :: AuthRequirement) func | auth -> func where
-  addAuth :: AuthProxy auth -> Request -> func
+class AddAuthentication ret (auth :: AuthRequirement) func | ret auth -> func where
+  addAuth :: AuthProxy auth -> Request ret -> func
 
-instance addAuthNone :: AddAuthentication None Request where
+instance addAuthNone :: AddAuthentication ret None (Request ret) where
   addAuth _ = identity
 
-instance addAuthOptional :: AddAuthentication Optional (Maybe T.Token -> Request) where
+instance addAuthOptional :: AddAuthentication ret Optional (Maybe T.Token -> Request ret) where
   addAuth _ req@(Request r) token = case token of
     Nothing -> req
     Just t -> Request $ T.authorize r t
 
-instance addAuthRequired :: AddAuthentication Required (T.Token -> Request) where
+instance addAuthRequired :: AddAuthentication ret Required (T.Token -> Request ret) where
   addAuth _ (Request r) t = Request $ T.authorize r t
 
-defaultRequest :: forall a. A.EncodeJson a => Url.Url -> Method -> a -> Request
+defaultRequest :: forall a r. A.EncodeJson a => Url.Url -> Method -> a -> Request r
 defaultRequest url method payload =
   Request
     $ AJ.defaultRequest
@@ -83,12 +83,15 @@ defaultRequest url method payload =
 
 create ::
   forall payload auth response result.
-  AddAuthentication auth result =>
+  AddAuthentication response auth result =>
   A.EncodeJson (Record payload) =>
   Endpoint payload auth response -> Url.Url -> Method -> Record payload -> result
-create description url method payload = defaultRequest url method payload # addAuth (auth description)
+create description url method payload = defaultRequest url method payload # authenticate
+    where 
+        authenticate :: Request response -> result
+        authenticate = addAuth (auth description)
 
 create_ :: forall auth response result.
-  AddAuthentication auth result =>
+  AddAuthentication response auth result =>
   Endpoint () auth response -> Url.Url -> Method ->  result
 create_ d u m = create d u m {}

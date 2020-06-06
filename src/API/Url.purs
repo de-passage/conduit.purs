@@ -3,27 +3,35 @@ module API.Url
   , article
   , allArticles
   , defaultArticleOptions
+  , defaultArticleLimit
   , profile
   , follow
   , tags
   , comments
+  , comment
   , users
+  , currentUser
   , feed
+  , limitedFeed
   , login
   , userArticles
   , taggedArticles
   , favorites
+  , favorite
   , register
   , Url
   , ArticleOptions
+  , ArticleLimit
+  , Limit
   ) where
 
-import Data.Array (catMaybes, intercalate)
+import Data.Array (catMaybes, intercalate, length)
 import Data.Article (Slug)
+import Data.Comment (CommentId)
 import Data.Maybe (Maybe(..))
 import Data.Tag (Tag)
 import Data.User (Username)
-import Prelude (class Show, show, (#), ($), (<#>), (<>))
+import Prelude (class Show, show, ($), (<#>), (<>), (>))
 
 newtype Url
   = Url String
@@ -46,6 +54,9 @@ instance showUnquotedSlug :: ShowUnquoted Slug where
 instance showUnquotedTag :: ShowUnquoted Tag where
   showUnquoted = show
 
+instance showUnquotedCommentId :: ShowUnquoted CommentId where
+  showUnquoted = show
+
 instance showUnquotedString :: ShowUnquoted String where
   showUnquoted s = s
 
@@ -63,6 +74,9 @@ allArticles = root <.> "articles/"
 article :: Slug -> Url
 article s = allArticles <.> s <.> "/"
 
+favorite :: Slug -> Url
+favorite s = article s <.> "favorite/"
+
 profile :: Username -> Url
 profile u = root <.> "profiles/" <.> u <.> "/"
 
@@ -75,11 +89,31 @@ tags = root <.> "tags/"
 comments :: Slug -> Url
 comments slug = article slug <.> "comments/"
 
+comment :: Slug -> CommentId -> Url
+comment slug id = comments slug <.> id <.> "/"
+
 users :: Url
 users = root <.> "users/"
 
+currentUser :: Url
+currentUser = root <.> "user/"
+
 feed :: Url
 feed = allArticles <.> "feed/"
+
+limitedFeed :: ArticleLimit -> Url
+limitedFeed opts = 
+  if length prefixed > 0 then
+    feed <.> "?" <.> options
+  else
+    feed
+  where
+  options = intercalate ";" prefixed
+
+  prefixed = catMaybes
+    [ prefix "limit" opts.limit
+    , prefix "offset" opts.offset
+    ]
 
 login :: Url
 login = users <.> "login/"
@@ -87,12 +121,17 @@ login = users <.> "login/"
 register :: Url
 register = users
 
+type Limit
+  = ( limit :: Maybe Int, offset :: Maybe Int )
+
+type ArticleLimit
+  = Record Limit
+
 type ArticleOptions
   = { author :: Maybe Username
     , tag :: Maybe Tag
     , favorited :: Maybe Username
-    , limit :: Maybe Int
-    , offset :: Maybe Int
+    | Limit
     }
 
 defaultArticleOptions :: ArticleOptions
@@ -104,19 +143,31 @@ defaultArticleOptions =
   , offset: Nothing
   }
 
+defaultArticleLimit :: ArticleLimit
+defaultArticleLimit =
+  { limit: Nothing
+  , offset: Nothing
+  }
+
 articles :: ArticleOptions -> Url
-articles opts = allArticles <.> "?" <.> options
+articles opts = 
+  if length prefixed > 0 then
+    allArticles <.> "?" <.> options
+  else
+    allArticles
   where
-    options = catMaybes prefixed # intercalate ";"
-    prefixed = [
-      prefix "author" opts.author
-      , prefix "tag" opts.tag
-      , prefix "favorited" opts.favorited
-      , prefix "limit" opts.limit
-      , prefix "offset" opts.offset
+  options = intercalate ";" prefixed
+
+  prefixed = catMaybes
+    [ prefix "author" opts.author
+    , prefix "tag" opts.tag
+    , prefix "favorited" opts.favorited
+    , prefix "limit" opts.limit
+    , prefix "offset" opts.offset
     ]
-    prefix :: forall v. Show v => String -> Maybe v -> Maybe String
-    prefix name value = value <#> \v -> name <> "=" <> show v
+
+prefix :: forall v. Show v => String -> Maybe v -> Maybe String
+prefix name value = value <#> \v -> name <> "=" <> show v
 
 userArticles :: Username -> Url
 userArticles u = articles $ defaultArticleOptions { author = Just u }
@@ -125,4 +176,4 @@ taggedArticles :: Tag -> Url
 taggedArticles t = articles $ defaultArticleOptions { tag = Just t }
 
 favorites :: Username -> Url
-favorites u = articles $ defaultArticleOptions { favorited = Just u } 
+favorites u = articles $ defaultArticleOptions { favorited = Just u }
