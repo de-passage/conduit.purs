@@ -13,44 +13,17 @@ import Data.Either (Either(..))
 import Data.HTTP.Method as HTTP
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tag (Tag)
-import Data.Token (Token, authorizationHeader)
+import Data.Token (Token)
 import Data.User (Profile, User, Username)
 import Effect.Aff (Aff)
-import Data.Endpoint as E
-
-type ProfileResponse
-  = { profile :: Profile
-    }
-
-type ArticleResponse
-  = { article :: Article
-    }
-
-type ArticlesResponse
-  = { articles :: Array Article
-    }
-
-type CommentResponse
-  = { comment :: Comment
-    }
-
-type CommentsResponse
-  = { comments :: Array Comment }
-
-type TagsResponse
-  = { tags :: Array Tag }
-
-type UserResponse
-  = { user :: User }
-
-type DecodedResponse a
-  = Either String a
+import Data.Url as E
+import API.Response
 
 getArticle :: Slug -> Aff (DecodedResponse Article)
 getArticle s = getFromApi' (_.article :: ArticleResponse -> Article) (E.article s)
 
 getArticles :: Aff (DecodedResponse (Array Article))
-getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) E.articles
+getArticles = getFromApi' (_.articles :: ArticlesResponse -> Array Article) E.allArticles
 
 getUserArticles :: Username -> Aff (DecodedResponse (Array Article))
 getUserArticles = E.userArticles >>> getFromApi' (_.articles :: ArticlesResponse -> Array Article)
@@ -113,7 +86,7 @@ getFeed token = do
 type APIRequest =
   { token :: Maybe Token
   , method :: HTTP.Method
-  , url :: E.Endpoint
+  , url :: E.Url
   } 
 
 apiRequest :: APIRequest -> Aff (Either AJ.Error (AJ.Response A.Json))
