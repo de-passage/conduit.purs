@@ -182,34 +182,37 @@ handleAction = case _ of
     handleAction (Receive state)
   Receive user ->
     let
-      loadArts = maybe loadArticles loadPersonal user
+      loadArts = maybe (loadArticles Nothing) loadPersonal user
     in
       do
         parSequence_ [ loadArts, loadTags ]
   TabSelected tab -> do
-    currentTab <- H.gets _.selected
+    state <- H.get
+    let currentTab = state.selected
+    let user = state.currentUser
     case tab of
       TagFeed tag -> case currentTab of
         TagFeed currentTag ->
           if tag /= currentTag then
-            loadTagged tag
+            loadTagged tag (user <#> _.token)
           else
             pure unit
-        _ -> loadTagged tag
+        _ -> loadTagged tag (user <#> _.token)
       GlobalFeed -> case currentTab of
         GlobalFeed -> pure unit
-        _ -> loadGlobal
-      PersonalFeed user -> case currentTab of
+        _ -> do 
+          loadGlobal (user <#> _.token)
+      PersonalFeed u -> case currentTab of
         PersonalFeed _ -> pure unit
-        _ -> loadPersonal user
+        _ -> loadPersonal u
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
-  loadArticles = load API.getArticles (\v -> _ { articles = v })
+  loadArticles token = load (API.getArticles token) (\v -> _ { articles = v })
 
-  loadGlobal = load API.getArticles (\v -> _ { articles = v, selected = GlobalFeed })
+  loadGlobal token = load (API.getArticles token) (\v -> _ { articles = v, selected = GlobalFeed })
 
-  loadTagged tag = load (API.getTaggedArticles tag) (\v -> _ { articles = v, selected = TagFeed tag })
+  loadTagged tag token = load (API.getTaggedArticles tag token) (\v -> _ { articles = v, selected = TagFeed tag })
 
   loadTags = load API.getTags (\v -> _ { tags = v })
 

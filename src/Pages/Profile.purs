@@ -136,6 +136,6 @@ handleAction = case _ of
     H.modify_ (_ { username = username })
   where
   setArticles c u v s = s { articles = v, username = c u}
-  loadProfile username = load (API.getProfile $ extract username) (\v -> _ { profile = v })
-  loadArticles (Authored username) = load (API.getUserArticles username) $ setArticles Authored username
-  loadArticles (Favorited username) = load (API.getFavorites username) $ setArticles Favorited username
+  loadProfile username = load (API.getProfile (extract username) Nothing) (\v -> _ { profile = v })
+  loadArticles (Authored username) = load (API.getUserArticles username Nothing) $ setArticles Authored username
+  loadArticles (Favorited username) = load (API.getFavorites username Nothing) $ setArticles Favorited username

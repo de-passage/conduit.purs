@@ -4,7 +4,6 @@ import Prelude
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
-import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
 import Data.User (User, deleteStoredUser, storeUser)
 import Effect (Effect)
@@ -104,7 +103,7 @@ showPage r s = case r of
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
   Profile username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Authored username) absurd
   Favorites username -> HH.slot _profile unit Pages.Profile.component (Pages.Profile.Favorited username) absurd
-  NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> unwrap url <> ") doesn't exist!" ]
+  NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
   where
   authenticated a b = case s.currentUser of
     Just user -> a user

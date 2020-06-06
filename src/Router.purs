@@ -20,7 +20,6 @@ import Data.Either (Either, either)
 import Data.Foldable (oneOf)
 import Data.Maybe (fromMaybe)
 import Data.Newtype (unwrap)
-import Data.Url (Url(..))
 import Data.User (Username(..))
 import Global (decodeURIComponent)
 import Routing.Match (Match, end, lit, runMatch, str, root)
@@ -36,7 +35,7 @@ data Route
   | ShowArticle Slug
   | Profile Username
   | Favorites Username
-  | NotFound Url
+  | NotFound String
   
 instance showRoute :: Show Route where
   show Home = "Home"
@@ -48,7 +47,7 @@ instance showRoute :: Show Route where
   show (ShowArticle s) = "ShowArticle " <> unwrap s
   show (Profile u) = "Profile " <> unwrap u
   show (Favorites u) = "Favorites " <> unwrap u
-  show (NotFound url) = "Url not found: " <> unwrap url
+  show (NotFound url) = "Url not found: " <> url
 
 home :: Match Route
 home = Home <$ end
@@ -133,4 +132,4 @@ route f r =
 
 routeWith404 :: forall a. (Route -> a) -> String -> a
 routeWith404 f r = route f r
-                  # either (\_ -> f (NotFound (Url r))) identity
+                  # either (\_ -> f (NotFound r)) identity

@@ -115,9 +115,9 @@ handleAction = case _ of
   Receive slug -> do
     parSequence_ [ loadArticle slug, loadComments slug ]
   where
-  loadArticle slug = load (API.getArticle slug) (\v -> _ { article = v })
+  loadArticle slug = load (API.getArticle slug Nothing) (\v -> _ { article = v })
 
-  loadComments slug = load (API.getComments slug) (\v -> _ { comments = v })
+  loadComments slug = load (API.getComments slug Nothing) (\v -> _ { comments = v })
 
 articleMeta :: forall w i. Article -> HH.HTML w i
 articleMeta article =

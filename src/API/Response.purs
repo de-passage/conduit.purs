@@ -46,5 +46,15 @@ type UserResponse
 
 user = Proxy :: Proxy UserResponse
 
-type DecodedResponse a
-  = Either String a
+type ValidationError = { name :: String, errors :: Array String }
+
+data Error = 
+  ValidationFailed (Array ValidationError)
+  | Unauthorized
+  | Forbidden
+  | NotFound
+  | AjaxFailed String
+  | ParseError String
+  | APIError
+
+type Response a = Either Error a

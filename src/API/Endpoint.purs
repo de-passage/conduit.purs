@@ -61,8 +61,8 @@ allArticles = C.create_ D.articles Url.allArticles GET
 limitedFeed :: ArticleLimit -> T.Token -> ArticlesRequest
 limitedFeed options = C.create_ D.feed (Url.limitedFeed options) GET
 
-feed :: ArticleLimit -> T.Token -> ArticlesRequest
-feed options = C.create_ D.feed (Url.limitedFeed options) GET
+feed :: T.Token -> ArticlesRequest
+feed = C.create_ D.feed Url.feed GET
 
 article :: Slug -> Maybe T.Token -> ArticleRequest
 article s = C.create_ D.article (Url.article s) GET
