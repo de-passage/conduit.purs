@@ -17,15 +17,33 @@ module Data.Endpoint
 import Data.Article (Slug)
 import Data.Tag (Tag)
 import Data.User (Username)
-import Prelude (class Show, append, show, ($))
+import Prelude (class Show, (<>), show, ($))
 
 newtype Endpoint = Endpoint String
 
 instance showEndpoint :: Show Endpoint where 
     show (Endpoint url) = url
 
-combine :: forall a b. Show a => Show b => a -> b -> Endpoint
-combine a b = Endpoint $ append (show a) (show b)
+class ShowUnquoted m where
+  showUnquoted :: m -> String
+
+instance showUnquotedEndpoint :: ShowUnquoted Endpoint where
+  showUnquoted = show
+
+instance showUnquotedUsername :: ShowUnquoted Username where
+  showUnquoted = show
+
+instance showUnquotedSlug :: ShowUnquoted Slug where
+  showUnquoted = show
+
+instance showUnquotedTag :: ShowUnquoted Tag where
+  showUnquoted = show
+
+instance showUnquotedString :: ShowUnquoted String where
+  showUnquoted s = s
+
+combine :: forall a b. ShowUnquoted a => ShowUnquoted b => a -> b -> Endpoint
+combine a b = Endpoint $ showUnquoted a <> showUnquoted b
 infixl 4 combine as <.>
 
 root :: Endpoint
