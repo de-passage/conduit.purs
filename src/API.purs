@@ -14,56 +14,12 @@ module API
   ) where
 
 import Prelude
-import API.Response
-  ( ArticleResponse
-  , ArticlesResponse
-  , CommentsResponse
-  , Error(..)
-  , ProfileResponse
-  , Response
-  , TagsResponse
-  , UserResponse
-  )
-import API.Endpoint
-  ( ArticleCreationPayload
-  , ArticleEditionPayload
-  , ArticleRequest
-  , ArticlesRequest
-  , CommentPayload
-  , CommentRequest
-  , CommentsRequest
-  , LoginPayload
-  , ProfileRequest
-  , RegistrationPayload
-  , SimpleRequest
-  , TagsRequest
-  , UserRequest
-  , UserUpdatePayload
-  , allArticles
-  , article
-  , articleCreation
-  , articleDeletion
-  , articleEdition
-  , articles
-  , commentCreation
-  , commentDeletion
-  , comments
-  , currentUser
-  , favorite
-  , feed
-  , follow
-  , limitedFeed
-  , login
-  , profile
-  , registration
-  , tags
-  , unfavorite
-  , unfollow
-  , updateUser
-  )
-  as E
+
+import API.Endpoint (ArticleCreationPayload, ArticleEditionPayload, ArticleRequest, ArticlesRequest, CommentPayload, CommentRequest, CommentsRequest, LoginPayload, ProfileRequest, RegistrationPayload, SimpleRequest, TagsRequest, UserRequest, UserUpdatePayload, allArticles, article, articleCreation, articleDeletion, articleEdition, articles, commentCreation, commentDeletion, comments, currentUser, favorite, feed, follow, limitedFeed, login, profile, registration, tags, unfavorite, unfollow, updateUser) as E
 import API.Endpoint.Core (Request)
+import API.Response (ArticleResponse, ArticlesResponse, CommentsResponse, Error(..), ProfileResponse, Response, TagsResponse, UserResponse)
 import API.Url as Url
+import API.Utils as Utils
 import Affjax (request, printError) as AJ
 import Affjax.StatusCode (StatusCode(..)) as AJ
 import Data.Argonaut as A
@@ -85,7 +41,7 @@ request r = do
         Left err -> Left $ AjaxFailed $ AJ.printError err
         Right { body, status } -> case status of
           (AJ.StatusCode 404) -> Left NotFound
-          (AJ.StatusCode 422) -> Left (ValidationFailed [])
+          (AJ.StatusCode 422) -> Left (ValidationFailed $ Utils.parseValidationErrors body)
           (AJ.StatusCode 401) -> Left Unauthorized
           (AJ.StatusCode 403) -> Left Forbidden
           (AJ.StatusCode 200) -> case A.decodeJson body of

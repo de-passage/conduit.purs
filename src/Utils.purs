@@ -1,8 +1,11 @@
 module Utils where
 
 import Prelude
+
 import API as API
 import API.Response (Error, fromError)
+import API.Response as R
+import Data.Argonaut as A
 import Data.Article (Article)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe, maybe)
