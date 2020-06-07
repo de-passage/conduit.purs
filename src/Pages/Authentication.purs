@@ -154,8 +154,8 @@ handleAction = case _ of
                 loggedIn
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
-        Just [ name, email, password ] -> do
-          req <- H.liftAff $ API.request $ API.registration { user: { name, email, password }}
+        Just [ username, email, password ] -> do
+          req <- H.liftAff $ API.request $ API.registration { user: { username, email, password }}
           case req of
             Left error -> H.modify_ _ { errorMessages = Just error }
             Right result -> loggedIn result.user

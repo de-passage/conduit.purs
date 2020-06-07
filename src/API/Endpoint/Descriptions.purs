@@ -17,7 +17,7 @@ type LoginPayload
 login = make :: C.Endpoint LoginPayload C.None R.UserResponse
 
 type RegistrationPayload
-  = ( user :: { email :: String, password :: String, name :: String } )
+  = ( user :: { email :: String, password :: String, username :: String } )
 
 register = make :: C.Endpoint RegistrationPayload C.None R.UserResponse
 
