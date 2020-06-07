@@ -5,6 +5,7 @@ import Prelude
 import API as API
 import API.Response (Error, fromError)
 import API.Response as R
+import Classes as C
 import Data.Argonaut as A
 import Data.Article (Article)
 import Data.Either (Either(..))
@@ -81,5 +82,5 @@ errorDisplay errors =
   HH.ul_
     ( fromError errors
         # map \msg ->
-            HH.li [ HP.classes [ BS.alert, BS.alertDanger ] ] [ HH.text msg ]
+            HH.li [ HP.classes [ C.errorMessages ] ] [ HH.text msg ]
     )

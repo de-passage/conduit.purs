@@ -4,20 +4,29 @@ import Prelude
 import API.Response as R
 import Control.Lazy (fix)
 import Data.Argonaut as A
-import Data.Array (concat, concatMap)
+import Data.Array (concatMap)
+import Data.Either (Either, either)
 import Data.Tuple.Nested ((/\))
-import Foreign.Object (Object)
 import Foreign.Object as F
 
+type ErrorContainer
+  = { errors :: A.Json }
+
 parseValidationErrors :: A.Json -> Array R.ValidationError
-parseValidationErrors =
-  A.caseJson
-    (\_ -> [])
-    (\boolean -> [ { name: show boolean, errors: [] } ])
-    (\number -> [ { name: show number, errors: [] } ])
-    (\str -> [ { name: str, errors: [] } ])
-    (\array -> concatMap parseValidationErrors array)
-    (\object -> F.toUnfoldable object # map (\(n /\ o) -> { name: n, errors: parseObject o }))
+parseValidationErrors json =
+  (A.decodeJson json :: Either String ErrorContainer)
+    # ( either
+          (\s -> [ { name: "API", errors: [ "Unexpected error format received (" <> s <> "). Content: " <> A.stringify json ] } ])
+          $ \j ->
+              A.caseJson
+                (\_ -> [])
+                (\boolean -> [ { name: show boolean, errors: [] } ])
+                (\number -> [ { name: show number, errors: [] } ])
+                (\str -> [ { name: str, errors: [] } ])
+                (\array -> concatMap parseValidationErrors array)
+                (\object -> F.toUnfoldable object # map (\(n /\ o) -> { name: n, errors: parseObject o }))
+                j.errors
+      )
   where
   parseObject :: A.Json -> Array String
   parseObject =
