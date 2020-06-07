@@ -6,6 +6,7 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
+import Data.Either (Either(..))
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
@@ -52,6 +53,7 @@ data Action
   | Receive (Maybe User)
   | TabSelected Tab
   | PreventDefault Event (Maybe Action)
+  | Favorited Article
 
 type ChildSlots
   = ()
@@ -83,7 +85,7 @@ render state =
   let
     articles = case state.articles of
       Loading -> [ HH.text "Loading" ]
-      Loaded as -> map ArticlePreview.render as
+      Loaded as -> map (ArticlePreview.render <*> preventDefault <<< Favorited) as
       LoadError error -> [ HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ] ]
 
     tagList = case state.tags of
@@ -165,8 +167,11 @@ tagLink tag =
     ]
     [ HH.text $ show tag ]
 
+preventDefault :: Action -> MouseEvent -> Maybe Action
+preventDefault action e = Just $ PreventDefault (toEvent e) $ Just $ action
+
 selectTab :: Tab -> MouseEvent -> Maybe Action
-selectTab tab e = Just $ PreventDefault (toEvent e) $ Just $ TabSelected tab
+selectTab tab = preventDefault $ TabSelected tab
 
 selectTag :: Tag -> MouseEvent -> Maybe Action
 selectTag tag = selectTab $ TagFeed tag
@@ -182,34 +187,47 @@ handleAction = case _ of
     handleAction (Receive state)
   Receive user ->
     let
-      loadArts = maybe loadArticles loadPersonal user
+      loadArts = maybe (loadArticles Nothing) loadPersonal user
     in
       do
         parSequence_ [ loadArts, loadTags ]
   TabSelected tab -> do
-    currentTab <- H.gets _.selected
+    state <- H.get
+    let
+      currentTab = state.selected
+    let
+      user = state.currentUser
     case tab of
       TagFeed tag -> case currentTab of
         TagFeed currentTag ->
           if tag /= currentTag then
-            loadTagged tag
+            loadTagged tag (user <#> _.token)
           else
             pure unit
-        _ -> loadTagged tag
+        _ -> loadTagged tag (user <#> _.token)
       GlobalFeed -> case currentTab of
         GlobalFeed -> pure unit
-        _ -> loadGlobal
-      PersonalFeed user -> case currentTab of
+        _ -> do
+          loadGlobal (user <#> _.token)
+      PersonalFeed u -> case currentTab of
         PersonalFeed _ -> pure unit
-        _ -> loadPersonal user
+        _ -> loadPersonal u
+  Favorited article -> do
+    user <- H.gets _.currentUser
+    let
+      token = user <#> _.token
+    token # maybe (pure unit) \tok -> 
+      Utils.favorite article tok updateArticles _.articles
+
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
-  loadArticles = load API.getArticles (\v -> _ { articles = v })
+  updateArticles v = _ { articles = v }
+  loadArticles token = load (API.getArticles token) updateArticles
 
-  loadGlobal = load API.getArticles (\v -> _ { articles = v, selected = GlobalFeed })
+  loadGlobal token = load (API.getArticles token) (\v -> _ { articles = v, selected = GlobalFeed })
 
-  loadTagged tag = load (API.getTaggedArticles tag) (\v -> _ { articles = v, selected = TagFeed tag })
+  loadTagged tag token = load (API.getTaggedArticles tag token) (\v -> _ { articles = v, selected = TagFeed tag })
 
   loadTags = load API.getTags (\v -> _ { tags = v })
 

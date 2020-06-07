@@ -4,13 +4,14 @@ import Data.Argonaut (class DecodeJson, class EncodeJson)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Tag (Tag)
 import Data.User (Profile)
-import Prelude (class Show)
+import Prelude (class Eq, class Show)
 
 newtype Slug = Slug String
 
 derive instance newtypeSlug :: Newtype Slug _
 derive newtype instance decodeJsonSlug :: DecodeJson Slug
 derive newtype instance encodeJsonSlug :: EncodeJson Slug
+derive instance eqSlug :: Eq Slug
 
 instance showSlug :: Show Slug where
   show = unwrap
