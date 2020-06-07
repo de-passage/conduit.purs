@@ -158,4 +158,4 @@ handleAction = case _ of
     Utils.preventDefault event action handleAction
   where
   login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either String User)
-  login email password = H.liftAff $ API.login { email, password }
+  login email password = H.liftAff $ API.loginR { email, password }

@@ -1,13 +1,24 @@
-module API where
+module API (module E
+  , getArticle
+  , getArticles
+  , getComments
+  , getUserArticles
+  , getTaggedArticles
+  , getTags
+  , getFavorites
+  , getFeed
+  , loginR
+  , getProfile
+  , request) where
 
+import API.Response
 import Prelude
 
 import API.Endpoint as E
 import API.Endpoint.Core (Request)
-import API.Response
 import API.Url as Url
 import Affjax (request, printError) as AJ
-import Affjax.StatusCode (StatusCode(..)) as AJ 
+import Affjax.StatusCode (StatusCode(..)) as AJ
 import Data.Argonaut as A
 import Data.Article (Slug, Article)
 import Data.Bifunctor (bimap)
@@ -79,5 +90,5 @@ getComments slug token = request' (_.comments :: CommentsResponse -> Array Comme
 getFeed :: Token -> Aff (DecodedResponse (Array Article))
 getFeed token = request' (_.articles :: ArticlesResponse -> Array Article) (E.feed token)
 
-login :: { email :: String, password :: String } -> Aff (DecodedResponse User)
-login user = request' (_.user :: UserResponse -> User) $ E.login { user }
+loginR :: { email :: String, password :: String } -> Aff (DecodedResponse User)
+loginR user = request' (_.user :: UserResponse -> User) $ E.login { user }
