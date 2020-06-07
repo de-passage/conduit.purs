@@ -25,8 +25,8 @@ currentUser = make :: Empty C.Required R.UserResponse
 
 type UserUpdatePayload
   = ( user ::
-        { email :: Maybe String
-        , username :: Maybe String
+        { email :: String
+        , username :: String
         , password :: Maybe String
         , image :: Maybe String
         , bio :: Maybe String

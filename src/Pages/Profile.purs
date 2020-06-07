@@ -1,16 +1,17 @@
 module Pages.Profile where
 
 import Prelude
-
 import API as API
+import API.Response as R
 import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
+import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.User (Profile, Username, User, fromImage)
-import Effect.Aff.Class (class MonadAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
@@ -39,6 +40,7 @@ type Input
 
 extract :: SubPage -> Username
 extract (Authored u) = u
+
 extract (Favorited u) = u
 
 dispatch :: forall a. a -> a -> SubPage -> a
@@ -140,31 +142,32 @@ render state =
     Loading -> [ HH.div_ [ HH.text "Loading" ] ]
     LoadError err -> [ HH.div [ HP.classes [ BS.alert, BS.alertDanger ] ] [ Utils.errorDisplay err ] ]
     Loaded articles -> map (ArticlePreview.render <*> preventDefault <<< FavoritedButton) articles
-  
+
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
 
 handleAction ∷
-  forall o m.
+  forall m.
   MonadAff m =>
   Action ->
-  H.HalogenM State Action ChildSlots o m Unit
+  H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
     state <- H.get
-    handleAction (Receive { page: state.page, currentUser : state.currentUser})
+    handleAction (Receive { page: state.page, currentUser: state.currentUser })
   Receive { page, currentUser } -> do
-    let token = currentUser <#> _.token
+    let
+      token = currentUser <#> _.token
     parSequence_ [ loadProfile page token, loadArticles page token ]
     H.modify_ (_ { page = page })
   FavoritedButton article -> do
     user <- H.gets _.currentUser
     let
       token = user <#> _.token
-    token # maybe (pure unit) \tok -> 
-      Utils.favorite article tok (\art -> _ { articles = art }) _.articles
-  PreventDefault event action ->
-    Utils.preventDefault event action handleAction
+    token
+      # maybe (pure unit) \tok ->
+          Utils.favorite article tok (\art -> _ { articles = art }) _.articles
+  PreventDefault event action -> Utils.preventDefault event action handleAction
   where
   setArticles c u v s = s { articles = v, page = c u }
 

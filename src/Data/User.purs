@@ -11,6 +11,7 @@ module Data.User
   , retrieveUser
   , fromImage
   , deleteStoredUser
+  , toMaybe
   ) where
 
 import Prelude
@@ -84,9 +85,16 @@ derive newtype instance encodeJsonImage :: A.EncodeJson Image
 
 derive newtype instance decodeJsonImage :: A.DecodeJson Image
 
+instance showImage :: Show Image where
+  show (Image (Just str)) = str
+  show (Image Nothing) = ""
+
 fromImage :: Image -> String
 fromImage (Image (Just url)) = url
 fromImage (Image Nothing) = "https://static.productionready.io/images/smiley-cyrus.jpg"
+
+toMaybe :: Image -> Maybe String
+toMaybe (Image i) = i
 
 userKey :: String
 userKey = "conduit-user"

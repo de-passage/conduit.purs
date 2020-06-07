@@ -29,6 +29,7 @@ data Action
   = LogOut
   | LogIn User
   | Redirect String
+  | UpdateUser User
 
 data Query a
   = ChangeRoute String a
@@ -131,6 +132,7 @@ handleAction = case _ of
   LogIn user -> do
     H.liftEffect $ storeUser user
     H.modify_ (_ { currentUser = Just user, currentRoute = Home })
+  UpdateUser user -> H.modify_ _ { currentUser = Just user }
   Redirect url -> pure unit
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
@@ -145,8 +147,6 @@ handleQuery = case _ of
       (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)
 
-log' :: Route -> Effect Unit
-log' = log <<< show
 
 handleAuthenticationMessages :: Pages.Authentication.Output -> Maybe Action
 handleAuthenticationMessages =
@@ -159,4 +159,4 @@ handleSettingsMessages =
   Just
     <<< case _ of
         Pages.Settings.LogOutRequested -> LogOut
-        Pages.Settings.UserUpdated user -> LogIn user
+        Pages.Settings.UserUpdated user -> UpdateUser user

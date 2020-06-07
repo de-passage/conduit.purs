@@ -2,11 +2,15 @@ module Pages.Settings where
 
 import Prelude
 
+import API as API
+import API.Response as R
 import Classes as C
+import Control.Alt ((<|>))
 import Data.Const (Const)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Either (Either(..))
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
-import Data.User (Email(..), Image, User, fromImage)
+import Data.User (Email(..), Image, User, fromImage, toMaybe)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -37,15 +41,18 @@ data Action
 type Query
   = Const Void
 
-type State
-  = { currentUser :: User
-    , editedUser ::
+type EditedUser = 
         { bio :: Maybe String
         , email :: Maybe String
         , password :: Maybe String
         , image :: Maybe String
         , username :: Maybe String
         }
+
+type State
+  = { currentUser :: User
+    , editedUser :: EditedUser
+    , errorMessages :: Maybe R.Error
     }
 
 type ChildSlots
@@ -72,6 +79,7 @@ component =
         , image: Nothing
         , password: Nothing
         }
+    , errorMessages: Nothing
     }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -81,6 +89,7 @@ render state =
         [ HH.div [ HP.class_ BS.row ]
             [ HH.div [ HP.classes [ BS.colMd6, BS.offsetMd3, C.colXs12 ] ]
                 [ HH.h1 [ HP.class_ C.textXsCenter ] [ HH.text "Your Settings" ]
+                , maybe (HH.div_ []) Utils.errorDisplay state.errorMessages
                 , HH.form_
                     [ HH.fieldset_
                         [ HH.fieldset [ HP.class_ BS.formGroup ]
@@ -88,6 +97,8 @@ render state =
                                 [ HP.class_ BS.formControl
                                 , HP.type_ HP.InputText
                                 , HP.placeholder "URL of profile picture"
+                                , HP.value (maybe (show state.currentUser.image) show state.editedUser.image)
+                                , HE.onValueChange (Just <<< ChangePicture)
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -95,6 +106,8 @@ render state =
                                 [ HP.classes [ BS.formControl, BS.formControlLg ]
                                 , HP.type_ HP.InputText
                                 , HP.placeholder "Your Name"
+                                , HP.value (maybe (show state.currentUser.username) identity state.editedUser.username)
+                                , HE.onValueChange (Just <<< ChangeName)
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -102,6 +115,8 @@ render state =
                                 [ HP.classes [ BS.formControl, BS.formControlLg ]
                                 , HP.placeholder "Short bio about you"
                                 , HP.rows 8
+                                , HP.value (maybe (maybe "" identity state.currentUser.bio) identity state.editedUser.bio)
+                                , HE.onValueChange (Just <<< ChangeBio)
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -109,6 +124,8 @@ render state =
                                 [ HP.classes [ BS.formControl, BS.formControlLg ]
                                 , HP.type_ HP.InputEmail
                                 , HP.placeholder "Email"
+                                , HP.value (maybe (show state.currentUser.email) identity state.editedUser.email)
+                                , HE.onValueChange (Just <<< ChangeEmail)
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -116,20 +133,24 @@ render state =
                                 [ HP.classes [ BS.formControl, BS.formControlLg ]
                                 , HP.type_ HP.InputPassword
                                 , HP.placeholder "Password"
+                                , HE.onValueChange (Just <<< ChangePassword)
                                 ]
                             ]
-                        , HH.button [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ] ]
+                        , HH.button [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
+                            , HE.onClick $ preventDefault UpdateSettings ]
                             [ HH.text "Update Settings"
                             ]
                         ]
                         , HH.button [ HP.classes [ BS.btn, BS.btnOutlineDanger ]
-                            , HE.onClick \e -> Just (PreventDefault (toEvent e) (Just LogOut)) ]
+                            , HE.onClick $ preventDefault LogOut ]
                             [ HH.text "Log out"]
                     ]
                 ]
             ]
         ]
     ]
+    where
+      preventDefault action e = Just (PreventDefault (toEvent e) (Just action))
 
 handleAction :: forall m. MonadAff m => Action -> H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
@@ -140,5 +161,27 @@ handleAction = case _ of
   ChangePassword str -> H.modify_ _ { editedUser { password = Just str } }
   LogOut -> H.raise LogOutRequested
   PreventDefault event action -> Utils.preventDefault event action handleAction
-  UpdateSettings ->
-    pure unit
+  UpdateSettings -> do
+    cur <- H.gets _.currentUser
+    edited <- H.gets _.editedUser
+    req <-
+      H.liftAff
+        $ API.request 
+        $ API.updateUser (mkPayload cur edited)
+            cur.token
+    case req of  
+      Left error -> H.modify_ _ { errorMessages = Just error }
+      Right user -> do
+        H.modify_ _ { errorMessages = Nothing}
+        H.raise (UserUpdated user.user)
+  where
+    mkPayload :: User -> EditedUser -> API.UserUpdatePayload
+    mkPayload cur edited = 
+      { user: { 
+                  username: fromMaybe (show cur.username) edited.username
+                  , bio: edited.bio <|> cur.bio 
+                  , email: fromMaybe (show cur.email) edited.email
+                  , password: edited.password
+                  , image:  edited.image <|> toMaybe cur.image 
+                  }
+              }
