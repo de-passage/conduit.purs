@@ -55,7 +55,7 @@ import API.Endpoint
   , limitedFeed
   , login
   , profile
-  , registation
+  , registration
   , tags
   , unfavorite
   , unfollow

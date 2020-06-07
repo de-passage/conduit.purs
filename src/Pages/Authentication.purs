@@ -7,7 +7,7 @@ import API.Response (Error, fromError)
 import Classes as C
 import Data.Array (snoc)
 import Data.Const (Const)
-import Data.Either (Either, either)
+import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Traversable (sequence)
 import Data.User (User)
@@ -145,18 +145,22 @@ handleAction = case _ of
       Login -> case sequence [ state.email, state.password ] of
         Just [ email, password ] -> do
           user <- login email password
-          user # either
-            (\v -> H.modify_  _ { errorMessages = fromError v })
-            (H.raise <<< LoginPerformed)
+          user
+            # either
+                (\v -> H.modify_ _ { errorMessages = fromError v })
+                (H.raise <<< LoginPerformed)
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
-        Just [ name, email, password ] -> pure unit
+        Just [ name, email, password ] -> do
+          req <- H.liftAff $ API.request $ API.registration { user: { name, email, password }}
+          case req of
+            Left error -> H.modify_ _ { errorMessages = fromError error }
+            Right result -> H.raise $ LoginPerformed result.user
         _ -> pure unit
   NameChanged name -> H.modify_ _ { name = Just name }
   EmailChanged email -> H.modify_ _ { email = Just email }
   PasswordChanged password -> H.modify_ _ { password = Just password }
-  PreventDefault event action ->
-    Utils.preventDefault event action handleAction
+  PreventDefault event action -> Utils.preventDefault event action handleAction
   where
   login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either Error User)
   login email password = H.liftAff $ API.loginR { email, password }

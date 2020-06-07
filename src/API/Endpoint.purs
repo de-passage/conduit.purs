@@ -34,8 +34,8 @@ type SimpleRequest = C.Request Unit
 login :: LoginPayload -> UserRequest
 login = C.create D.login Url.login POST
 
-registation :: RegistrationPayload -> UserRequest
-registation = C.create D.register Url.register POST
+registration :: RegistrationPayload -> UserRequest
+registration = C.create D.register Url.register POST
 
 currentUser :: T.Token -> UserRequest
 currentUser = C.create_ D.currentUser Url.currentUser GET
