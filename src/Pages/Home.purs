@@ -86,7 +86,7 @@ render state =
     articles = case state.articles of
       Loading -> [ HH.text "Loading" ]
       Loaded as -> map (ArticlePreview.render <*> preventDefault <<< Favorited) as
-      LoadError error -> [ HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ] ]
+      LoadError error -> [ Utils.errorDisplay error ]
 
     tagList = case state.tags of
       Loading -> HH.div_ []
@@ -97,7 +97,7 @@ render state =
               ( map tagLink tags
               )
           ]
-      LoadError error -> HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ]
+      LoadError error -> Utils.errorDisplay error
 
     feedTab text tab selected =
       let

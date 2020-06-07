@@ -98,7 +98,7 @@ render state =
   in
     case state.profile of
       Loading -> HH.div_ [ HH.text "Loading" ]
-      LoadError error -> HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ]
+      LoadError error -> HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay error ]
       Loaded profile ->
         HH.div [ HP.class_ C.profilePage ]
           [ HH.div [ HP.class_ C.userInfo ]
@@ -138,7 +138,7 @@ render state =
   where
   showArticles = case _ of
     Loading -> [ HH.div_ [ HH.text "Loading" ] ]
-    LoadError err -> [ HH.div [ HP.classes [ BS.alert, BS.alertDanger ] ] [ HH.text err ] ]
+    LoadError err -> [ HH.div [ HP.classes [ BS.alert, BS.alertDanger ] ] [ Utils.errorDisplay err ] ]
     Loaded articles -> map (ArticlePreview.render <*> preventDefault <<< FavoritedButton) articles
   
   preventDefault :: Action -> MouseEvent -> Maybe Action

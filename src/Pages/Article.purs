@@ -18,6 +18,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
 import Router (profileUrl)
+import Utils as Utils
 
 type Query
   = Const Void
@@ -64,7 +65,7 @@ initialState slug = { article: Loading, comments: Loading, slug }
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
   Loading -> HH.div_ [ HH.text "Loading article" ]
-  LoadError error -> HH.div [ HP.class_ C.articlePage ] [ HH.div [ HP.class_ BS.alertDanger ] [ HH.text error ] ]
+  LoadError error -> HH.div [ HP.class_ C.articlePage ] [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay error ] ]
   Loaded article ->
     HH.div [ HP.class_ C.articlePage ]
       [ HH.div [ HP.class_ C.banner ]
@@ -144,7 +145,7 @@ articleMeta article =
 comments :: forall w i. LoadState (Array Comment) -> Array (HH.HTML w i)
 comments = case _ of
   Loading -> [ HH.div_ [ HH.text "Loading comments" ] ]
-  LoadError err -> [ HH.div [ HP.class_ BS.alertDanger ] [ HH.text err ] ]
+  LoadError err -> [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay err ] ]
   Loaded cs -> map mkComment cs
   where
   mkComment :: Comment -> HH.HTML w i

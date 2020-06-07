@@ -1,7 +1,7 @@
 module LoadState where
 
 import Prelude
-
+import API.Response (Error)
 import Control.Monad.State (class MonadState, modify_)
 import Data.Either (Either(..))
 import Effect.Aff (Aff)
@@ -9,28 +9,28 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 
 data LoadState a
   = Loading
-  | LoadError String
+  | LoadError Error
   | Loaded a
 
 derive instance functorLoadState :: Functor LoadState
 
 instance applyLoadState :: Apply LoadState where
-    apply l a = bind l (_ <$> a)
+  apply l a = bind l (_ <$> a)
 
 instance bindLoadState :: Bind LoadState where
-    bind l f = case l of
-        Loading -> Loading
-        LoadError e -> LoadError e
-        Loaded a -> f a
+  bind l f = case l of
+    Loading -> Loading
+    LoadError e -> LoadError e
+    Loaded a -> f a
 
-instance applicativeLoadState :: Applicative LoadState where 
-    pure = Loaded
+instance applicativeLoadState :: Applicative LoadState where
+  pure = Loaded
 
 load ::
   forall a s m.
   MonadState s m =>
   MonadAff m =>
-  (Aff (Either String a)) ->
+  (Aff (Either Error a)) ->
   (LoadState a -> s -> s) ->
   m Unit
 load get set = do

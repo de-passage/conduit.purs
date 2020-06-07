@@ -2,6 +2,7 @@ module Utils where
 
 import Prelude
 import API as API
+import API.Response (Error, fromError)
 import Data.Article (Article)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe, maybe)
@@ -10,6 +11,9 @@ import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console as C
 import Halogen as H
+import Halogen.HTML as HH
+import Halogen.HTML.Properties as HP
+import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..))
 import Unsafe.Coerce as Unsafe
 import Web.Event.Event (Event, preventDefault) as W
@@ -68,3 +72,11 @@ replace article update retrieve state = case retrieve state of
       )
       state
   _ -> state
+
+errorDisplay :: forall w i. Error -> HH.HTML w i
+errorDisplay errors =
+  HH.ul_
+    ( fromError errors
+        # map \msg ->
+            HH.li [ HP.classes [ BS.alert, BS.alertDanger ] ] [ HH.text msg ]
+    )

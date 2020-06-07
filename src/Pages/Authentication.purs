@@ -3,6 +3,7 @@ module Pages.Authentication where
 import Prelude
 
 import API as API
+import API.Response (Error, fromError)
 import Classes as C
 import Data.Array (snoc)
 import Data.Const (Const)
@@ -145,7 +146,7 @@ handleAction = case _ of
         Just [ email, password ] -> do
           user <- login email password
           user # either
-            (\v -> H.modify_  _ { errorMessages = [ v ] })
+            (\v -> H.modify_  _ { errorMessages = fromError v })
             (H.raise <<< LoginPerformed)
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
@@ -157,5 +158,5 @@ handleAction = case _ of
   PreventDefault event action ->
     Utils.preventDefault event action handleAction
   where
-  login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either String User)
+  login :: String -> String -> H.HalogenM State Action ChildSlots Output m (Either Error User)
   login email password = H.liftAff $ API.loginR { email, password }
