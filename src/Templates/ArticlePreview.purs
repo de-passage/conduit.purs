@@ -1,6 +1,7 @@
 module Templates.ArticlePreview where
 
 import Prelude
+
 import Classes as C
 import Data.Article (Article)
 import Data.Maybe (Maybe)
@@ -11,6 +12,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import Router (profileUrl, showArticleUrl)
+import Utils as Utils
 import Web.UIEvent.MouseEvent (MouseEvent)
 
 render :: forall w i. Article -> (MouseEvent -> Maybe i) -> HH.HTML w i
@@ -27,7 +29,7 @@ render article favorite =
           [ HH.a [ HP.href userUrl ] [ HH.img [ HP.src $ fromImage article.author.image ] ]
           , HH.div [ HP.class_ C.info ]
               [ HH.a [ HP.href userUrl, HP.class_ C.author ] [ HH.text username ]
-              , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
+              , HH.span [ HP.class_ C.date ] [ HH.text $ Utils.hackyFormatDate article.createdAt ]
               ]
           , HH.button [ HP.classes [ BS.btn, btnStyle, BS.btnSm, C.pullXsRight ], HE.onClick favorite ]
               [ HH.i [ HP.class_ C.ionHeart ] [], HH.text (" " <> show article.favoritesCount)
