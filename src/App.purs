@@ -8,8 +8,7 @@ import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Data.User (User, deleteStoredUser, storeUser)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Class.Console (log)
+import Effect.Class (class MonadEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Pages.Article as Pages.Article
@@ -21,6 +20,7 @@ import Pages.Settings as Pages.Settings
 import Router (Route(..), route, routeWith404, showArticleUrl)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
+import Utils as Utils
 
 type State
   = GlobalState.State
@@ -163,7 +163,7 @@ handleQuery = case _ of
   ChangeRoute msg a -> do
     E.either
       ( \s -> do
-          liftEffect $ log s
+          Utils.log s
           pure unit
       )
       identity

@@ -5,11 +5,11 @@ import Prelude
 import API as API
 import API.Response (Error)
 import Classes as C
-import Data.Array (filter, nub, null, snoc)
+import Data.Array (filter, nub, snoc)
 import Data.Article (Slug)
 import Data.Const (Const)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen as H
@@ -22,7 +22,9 @@ import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent (toEvent)
 
 data Action
-  = ChangeTitle String
+  = Init
+  | Receive Input
+  | ChangeTitle String
   | ChangeDescription String
   | ChangeContent String
   | ChangeTag String
@@ -38,7 +40,7 @@ type State
         { description :: String
         , body :: String
         , title :: String
-        , tagList :: Maybe (Array String)
+        , tagList :: Array String
         }
     , currentTag :: String
     , errorMessages :: Maybe Error
@@ -74,21 +76,23 @@ component =
         H.mkEval
           $ H.defaultEval
               { handleAction = handleAction
+              , receive = Just <<< Receive
+              , initialize = Just Init
               }
     }
 
 initialState :: Input -> State
-initialState { currentUser } =
+initialState { currentUser, currentAction } =
   { currentUser: currentUser
-  , currentAction: New
+  , currentAction: currentAction
   , article:
       { body: ""
       , title: ""
-      , tagList: Nothing
+      , tagList: []
       , description: ""
       }
   , currentTag: ""
-  , errorMessages : Nothing
+  , errorMessages: Nothing
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -105,6 +109,7 @@ render state =
                                 , HP.type_ HP.InputText
                                 , HP.placeholder "Article Title"
                                 , HE.onValueChange (Just <<< ChangeTitle)
+                                , HP.value state.article.title
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -113,6 +118,7 @@ render state =
                                 , HP.type_ HP.InputText
                                 , HP.placeholder "What's this article about?"
                                 , HE.onValueChange (Just <<< ChangeDescription)
+                                , HP.value state.article.description
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -121,6 +127,7 @@ render state =
                                 , HP.rows 8
                                 , HP.placeholder "Write your article (in markdown)"
                                 , HE.onValueChange (Just <<< ChangeContent)
+                                , HP.value state.article.body
                                 ]
                             ]
                         , HH.fieldset [ HP.class_ BS.formGroup ]
@@ -153,24 +160,45 @@ handleAction ∷
   Action ->
   H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
+  Init -> do
+    { currentAction, currentUser } <- H.get
+    handleAction $ Receive { currentAction, currentUser }
+  Receive { currentAction, currentUser } -> case currentAction of
+    New -> pure unit
+    Edit slug -> do
+      req <- H.liftAff $ API.request $ API.article slug (Just currentUser.token)
+      case req of
+        Left err -> H.modify_ _ { errorMessages = Just err }
+        Right { article } ->
+          H.modify_
+            _
+              { article
+                { body = article.body
+                , description = article.description
+                , tagList = article.tagList <#> show
+                , title = article.title
+                }
+              }
   PreventDefault event action -> Utils.preventDefault event action handleAction
   ChangeContent content -> H.modify_ _ { article { body = content } }
   ChangeDescription description -> H.modify_ _ { article { description = description } }
   ChangeTag tag -> H.modify_ _ { currentTag = tag }
   ChangeTitle title -> H.modify_ _ { article { title = title } }
-  AddTag tag -> H.modify_ \s -> s { article { tagList = Just $ add tag s.article.tagList } }
+  AddTag tag -> H.modify_ \s -> s { article { tagList = add tag s.article.tagList } }
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
     { currentUser, article, currentAction } <- H.get
-    H.modify_ _{ errorMessages = Nothing }
+    H.modify_ _ { errorMessages = Nothing }
     case currentAction of
-      Edit _ -> pure unit
-      New -> do
-        req <- liftAff $ API.request $ API.articleCreation { article } currentUser.token
-        case req of
-            Left err -> H.modify_ _ { errorMessages = Just err }
-            Right art -> H.raise (Redirect art.article.slug)
+      Edit slug -> request $ API.articleEdition slug { article } currentUser.token
+      New -> request $ API.articleCreation { article } currentUser.token
   where
-  add tag = maybe [ tag ] (_ `snoc` tag) >>> nub
+  add tag = (_ `snoc` tag) >>> nub
 
-  remove tag = maybe [] (filter (_ /= tag)) >>> \a -> if null a then Nothing else Just a
+  remove tag = filter (_ /= tag)
+
+  request r = do
+        req <- liftAff $ API.request r
+        case req of
+          Left err -> H.modify_ _ { errorMessages = Just err }
+          Right art -> H.raise (Redirect art.article.slug)
