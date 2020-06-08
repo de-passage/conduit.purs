@@ -161,10 +161,10 @@ articleMeta currentUser article =
         , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
         ]
     , ( currentUser
-          # maybe (const $ HH.div_ [])
+          # maybe (const $ HH.span_ [])
               ( \u ->
                   if u.username == article.author.username then
-                    const $ HH.div_ []
+                    const $ HH.span_ []
                   else
                     Utils.followButtonC [ BS.btnSm ] (preventDefault <<< FollowButtonClicked)
               )
