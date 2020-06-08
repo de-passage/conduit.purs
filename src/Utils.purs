@@ -9,6 +9,7 @@ import Data.Article (Article)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap)
+import Data.String as S
 import Data.Token (Token)
 import Data.User (Profile)
 import Effect.Aff.Class (class MonadAff)
@@ -128,3 +129,27 @@ followButtonC cs action profile =
     
 followButton :: forall w i. (Profile -> MouseEvent -> Maybe w) -> Profile -> HH.HTML i w
 followButton = followButtonC []
+
+hackyFormatDate :: String -> String
+hackyFormatDate date = 
+  let year = S.take 4 date
+      month = f $ S.take 2 $ S.drop 5 date 
+      day = d $ S.take 2 $ S.drop 8 date
+
+      f "01" = "January"
+      f "02" = "February"
+      f "03" = "March"
+      f "04" = "April"
+      f "05" = "May"
+      f "06" = "June"
+      f "07" = "July"
+      f "08" = "August"
+      f "09" = "September"
+      f "10" = "October"
+      f "11" = "November"
+      f "12" = "December"
+      f s = s
+
+      d s = S.dropWhile (_ == S.codePointFromChar '0') s <> "."
+  in 
+    month <> " " <>  day <> " " <> year

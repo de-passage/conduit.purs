@@ -177,7 +177,7 @@ articleMeta user article =
           [ HH.img [ HP.src $ fromImage article.author.image ] ]
       , HH.div [ HP.class_ C.info ]
           [ HH.a [ HP.href (profileUrl article.author.username), HP.class_ C.author ] [ HH.text $ unwrap article.author.username ]
-          , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
+          , HH.span [ HP.class_ C.date ] [ HH.text $ Utils.hackyFormatDate article.createdAt ]
           ]
       ]
         <> buttons
@@ -260,7 +260,7 @@ comments currentComment article user = case _ of
           , HH.text " "
           , HH.a [ HP.href (profileUrl comment.author.username), HP.class_ C.commentAuthor ]
               [ HH.text $ unwrap comment.author.username ]
-          , HH.span [ HP.class_ C.datePosted ] [ HH.text $ comment.createdAt ]
+          , HH.span [ HP.class_ C.datePosted ] [ HH.text $ Utils.hackyFormatDate comment.createdAt ]
           , HH.span [ HP.class_ C.modOptions ] (options comment.id)
           ]
       ]
