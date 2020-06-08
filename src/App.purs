@@ -109,7 +109,7 @@ showPage r s = case r of
   Settings -> authenticated settings home
   NewArticle -> authenticated newArticle home
   EditArticle slug -> authenticated (editArticle slug) home
-  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } absurd
+  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } handleArticleMessages
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Authored username)
@@ -185,6 +185,12 @@ handleEditionMessages =
   Just
     <<< case _ of
         Pages.Edition.Redirect slug -> Redirect (showArticleUrl slug)
+
+handleArticleMessages :: Pages.Article.Output -> Maybe Action
+handleArticleMessages =
+  Just
+    <<< case _ of
+        Pages.Article.Redirect url -> Redirect url
 
 handleSettingsMessages :: Pages.Settings.Output -> Maybe Action
 handleSettingsMessages =

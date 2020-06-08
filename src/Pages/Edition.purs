@@ -57,8 +57,7 @@ type Input
 type ChildSlots
   = ()
 
-data Output
-  = Redirect Slug
+data Output = Redirect Slug
 
 type Query
   = Const Void
@@ -137,6 +136,7 @@ render state =
                                     , HP.type_ HP.InputText
                                     , HP.placeholder "Add a tag"
                                     , HE.onValueChange (Just <<< ChangeTag)
+                                    , HP.value state.currentTag
                                     ]
                                 , HH.button [ HP.classes [ BS.btn, BS.btnPrimary ], HE.onClick $ preventDefault AddTag ]
                                     [ HH.i [ HP.class_ C.ionAdd ] []

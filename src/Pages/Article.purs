@@ -1,6 +1,7 @@
 module Pages.Article where
 
 import Prelude
+
 import API as API
 import Classes as C
 import Control.Comonad (extract)
@@ -19,7 +20,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
-import Router (profileUrl)
+import Router (editArticleUrl, homeUrl, loginUrl, profileUrl)
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
@@ -27,8 +28,8 @@ import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 type Query
   = Const Void
 
-type Output
-  = Void
+data Output
+  = Redirect String
 
 type Input
   = { slug :: Slug, currentUser :: Maybe User }
@@ -49,6 +50,8 @@ data Action
   | FavoriteButtonClicked Article
   | FollowButtonClicked Profile
   | PreventDefault Event (Maybe Action)
+  | DeleteArticle Article
+  | EditArticle Article
 
 type ChildSlots
   = ()
@@ -113,10 +116,10 @@ render state = case state.article of
       ]
 
 handleAction ∷
-  forall o m.
+  forall m.
   MonadAff m =>
   Action ->
-  H.HalogenM State Action ChildSlots o m Unit
+  H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
     state <- H.get
@@ -129,7 +132,7 @@ handleAction = case _ of
   FavoriteButtonClicked article -> do
     state <- H.get
     state.currentUser
-      # maybe (pure unit) \u ->
+      # maybe (H.raise (Redirect loginUrl)) \u ->
           Utils.favorite
             article
             u.token
@@ -138,12 +141,19 @@ handleAction = case _ of
   FollowButtonClicked profile -> do
     state <- H.get
     state.currentUser
-      # maybe (pure unit) \u ->
-          Utils.follow profile u.token \v s -> case v of
+      # maybe (H.raise (Redirect loginUrl)) \{ token } ->
+          Utils.follow profile token \v s -> case v of
             Loaded a -> s { article = s.article <#> (_ { author = a }) }
             _ -> s
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
+  EditArticle article -> H.raise $ Redirect $ editArticleUrl article.slug
+  DeleteArticle { slug } -> do
+    user <- H.gets _.currentUser
+    user
+      # maybe (H.raise $ Redirect loginUrl) \{ token } -> do
+          _ <- H.liftAff $ API.request $ API.articleDeletion slug token
+          H.raise $ Redirect homeUrl
   where
   loadArticle slug token = load (API.getArticle slug token) setArticle
 
@@ -152,34 +162,72 @@ handleAction = case _ of
   setArticle v = _ { article = v }
 
 articleMeta :: forall w. Maybe User -> Article -> HH.HTML w Action
-articleMeta currentUser article =
+articleMeta user article =
   HH.div [ HP.class_ C.articleMeta ]
-    [ HH.a [ HP.href (profileUrl article.author.username) ]
-        [ HH.img [ HP.src $ fromImage article.author.image ] ]
-    , HH.div [ HP.class_ C.info ]
-        [ HH.a [ HP.href (profileUrl article.author.username), HP.class_ C.author ] [ HH.text $ unwrap article.author.username ]
-        , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
-        ]
-    , ( currentUser
-          # maybe (const $ HH.span_ [])
-              ( \u ->
-                  if u.username == article.author.username then
-                    const $ HH.span_ []
-                  else
-                    Utils.followButtonC [ BS.btnSm ] (preventDefault <<< FollowButtonClicked)
-              )
-      )
-        $ article.author
+    ( [ HH.a [ HP.href (profileUrl article.author.username) ]
+          [ HH.img [ HP.src $ fromImage article.author.image ] ]
+      , HH.div [ HP.class_ C.info ]
+          [ HH.a [ HP.href (profileUrl article.author.username), HP.class_ C.author ] [ HH.text $ unwrap article.author.username ]
+          , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
+          ]
+      ]
+        <> buttons
+    )
+  where
+  buttons :: Array (HH.HTML w Action)
+  buttons = case user of
+    Nothing -> normalBtns
+    Just u ->
+      if u.username == article.author.username then
+        selfBtns
+      else
+        normalBtns
+
+  normalBtns =
+    [ followButton article.author
     , HH.text "  "
-    , HH.button
-        [ HP.classes [ BS.btn, BS.btnSm, if article.favorited then BS.btnOutlinePrimary else BS.btnPrimary ]
-        , HE.onClick $ preventDefault (FavoriteButtonClicked article)
-        ]
-        [ HH.i [ HP.class_ C.ionHeart ] []
-        , HH.text (if article.favorited then " Unfavorite Post " else " Favorite Post ")
-        , HH.span [ HP.class_ C.counter ] [ HH.text $ "(" <> show article.favoritesCount <> ") " ]
-        ]
+    , favoriteButton
     ]
+
+  selfBtns =
+    [ editButton
+    , HH.text "  "
+    , deleteButton
+    ]
+
+  favoriteButton :: HH.HTML w Action
+  favoriteButton =
+    HH.button
+      [ HP.classes [ BS.btn, BS.btnSm, if article.favorited then BS.btnOutlinePrimary else BS.btnPrimary ]
+      , HE.onClick $ preventDefault (FavoriteButtonClicked article)
+      ]
+      [ HH.i [ HP.class_ C.ionHeart ] []
+      , HH.text (if article.favorited then " Unfavorite Post " else " Favorite Post ")
+      , HH.span [ HP.class_ C.counter ] [ HH.text $ "(" <> show article.favoritesCount <> ") " ]
+      ]
+
+  editButton :: HH.HTML w Action
+  editButton =
+    HH.button
+      [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineSecondary ]
+      , HE.onClick $ preventDefault (EditArticle article)
+      ]
+      [ HH.i [ HP.class_ C.ionEdit ] []
+      , HH.text "Edit Article"
+      ]
+
+  deleteButton :: HH.HTML w Action
+  deleteButton =
+    HH.button
+      [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineDanger ]
+      , HE.onClick $ preventDefault (DeleteArticle article)
+      ]
+      [ HH.i [ HP.class_ C.ionEdit ] []
+      , HH.text "Delete Article"
+      ]
+
+  followButton :: Profile -> HH.HTML w Action
+  followButton = Utils.followButtonC [ BS.btnSm ] (preventDefault <<< FollowButtonClicked)
 
 preventDefault :: Action -> MouseEvent -> Maybe Action
 preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
