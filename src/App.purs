@@ -1,15 +1,14 @@
 module App where
 
 import Prelude
+
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Data.User (User, deleteStoredUser, storeUser)
-import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Class.Console (log)
+import Effect.Class (class MonadEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Pages.Article as Pages.Article
@@ -18,9 +17,10 @@ import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
-import Router (Route(..), route, routeWith404)
+import Router (Route(..), homeUrl, profileUrl, redirect, route, routeWith404, showArticleUrl)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
+import Utils as Utils
 
 type State
   = GlobalState.State
@@ -40,6 +40,8 @@ type ChildSlots
     , profile :: Pages.Profile.Slot Unit
     , authentication :: Pages.Authentication.Slot Unit
     , settings :: Pages.Settings.Slot Unit
+    , newArticle :: Pages.Edition.Slot Unit
+    , editArticle :: Pages.Edition.Slot Unit
     )
 
 type Input
@@ -61,6 +63,12 @@ _authentication = SProxy
 
 _settings :: SProxy "settings"
 _settings = SProxy
+
+_newArticle :: SProxy "newArticle"
+_newArticle = SProxy
+
+_editArticle :: SProxy "editArticle"
+_editArticle = SProxy
 
 component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
@@ -99,9 +107,9 @@ showPage r s = case r of
   Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login handleAuthenticationMessages
   Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register handleAuthenticationMessages
   Settings -> authenticated settings home
-  NewArticle -> Pages.Edition.render
-  EditArticle _ -> Pages.Edition.render
-  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
+  NewArticle -> authenticated newArticle home
+  EditArticle slug -> authenticated (editArticle slug) home
+  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } handleArticleMessages
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Authored username)
@@ -124,35 +132,65 @@ showPage r s = case r of
 
   home = HH.slot _homePage unit Pages.Home.component s absurd
 
+  newArticle currentUser =
+    HH.slot _newArticle
+      unit
+      Pages.Edition.component
+      { currentAction: Pages.Edition.New, currentUser }
+      handleEditionMessages
+
+  editArticle slug currentUser =
+    HH.slot
+      _editArticle
+      unit
+      Pages.Edition.component
+      { currentAction: Pages.Edition.Edit slug, currentUser }
+      handleEditionMessages
+
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
   LogOut -> do
     H.liftEffect deleteStoredUser
-    H.modify_ (_ { currentUser = Nothing, currentRoute = Home })
+    H.modify_ (_ { currentUser = Nothing })
+    handleAction $ Redirect homeUrl
   LogIn user -> do
     H.liftEffect $ storeUser user
-    H.modify_ (_ { currentUser = Just user, currentRoute = Home })
-  UpdateUser user -> H.modify_ _ { currentUser = Just user }
-  Redirect url -> pure unit
+    H.modify_ (_ { currentUser = Just user })
+    handleAction $ Redirect homeUrl
+  UpdateUser user -> do
+    H.modify_ _ { currentUser = Just user }
+    handleAction $ Redirect (profileUrl user.username)
+  Redirect url -> H.liftEffect $ redirect url
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
   ChangeRoute msg a -> do
     E.either
       ( \s -> do
-          liftEffect $ log s
+          Utils.log s
           pure unit
       )
       identity
       (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)
 
-
 handleAuthenticationMessages :: Pages.Authentication.Output -> Maybe Action
 handleAuthenticationMessages =
   Just
     <<< case _ of
         Pages.Authentication.LoginPerformed user -> LogIn user
+
+handleEditionMessages :: Pages.Edition.Output -> Maybe Action
+handleEditionMessages =
+  Just
+    <<< case _ of
+        Pages.Edition.Redirect slug -> Redirect (showArticleUrl slug)
+
+handleArticleMessages :: Pages.Article.Output -> Maybe Action
+handleArticleMessages =
+  Just
+    <<< case _ of
+        Pages.Article.Redirect url -> Redirect url
 
 handleSettingsMessages :: Pages.Settings.Output -> Maybe Action
 handleSettingsMessages =

@@ -50,7 +50,7 @@ type ArticleCreationPayload
         { title :: String
         , description :: String
         , body :: String
-        , tagList :: Maybe (Array String)
+        , tagList :: Array String
         }
     )
 
@@ -58,10 +58,10 @@ createArticle = make :: C.Endpoint ArticleCreationPayload C.Required R.ArticleRe
 
 type ArticleEditionPayload
   = ( article ::
-        { title :: Maybe String
-        , description :: Maybe String
-        , body :: Maybe String
-        -- , tagList :: Maybe (Array String) -- can't edit the tag list apparently
+        { title :: String
+        , description :: String
+        , body :: String
+        , tagList :: Array String
         }
     )
 

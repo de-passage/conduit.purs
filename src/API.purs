@@ -17,7 +17,7 @@ import Prelude
 
 import API.Endpoint (ArticleCreationPayload, ArticleEditionPayload, ArticleRequest, ArticlesRequest, CommentPayload, CommentRequest, CommentsRequest, LoginPayload, ProfileRequest, RegistrationPayload, SimpleRequest, TagsRequest, UserRequest, UserUpdatePayload, allArticles, article, articleCreation, articleDeletion, articleEdition, articles, commentCreation, commentDeletion, comments, currentUser, favorite, feed, follow, limitedFeed, login, profile, registration, tags, unfavorite, unfollow, updateUser) as E
 import API.Endpoint.Core (Request)
-import API.Response (ArticleResponse, ArticlesResponse, CommentsResponse, Error(..), ProfileResponse, Response, TagsResponse, UserResponse)
+import API.Response (Error(..), Response)
 import API.Url as Url
 import API.Utils as Utils
 import Affjax (request, printError) as AJ

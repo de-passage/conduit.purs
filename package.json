@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "spag:watch": "spago build --watch",
+    "check": "spago build",
+    "check:watch": "spago build --watch",
     "test": "spago test --main Test.Main",
     "build": "webpack --config webpack.prod.js",
     "serve": "webpack-dev-server --config webpack.dev.js --open",
