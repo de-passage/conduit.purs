@@ -6,7 +6,6 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
-import Data.Either (Either(..))
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)

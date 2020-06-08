@@ -36,6 +36,7 @@ newtype Password
   = Password String
 
 derive instance newtypeUsername :: Newtype Username _
+derive instance eqUsername :: Eq Username
 
 derive instance newtypeEmail :: Newtype Email _
 

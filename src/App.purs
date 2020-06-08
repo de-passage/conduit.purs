@@ -6,7 +6,6 @@ import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Data.User (User, deleteStoredUser, storeUser)
-import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console (log)

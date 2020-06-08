@@ -1,19 +1,19 @@
 module Pages.Profile where
 
 import Prelude
+
 import API as API
-import API.Response as R
 import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
-import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.User (Profile, Username, User, fromImage)
-import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
@@ -62,7 +62,8 @@ data Action
   = Init
   | Receive Input
   | PreventDefault Event (Maybe Action)
-  | FavoritedButton Article
+  | FavoritedButtonClicked Article
+  | FollowButtonClicked Profile
 
 type ChildSlots
   = ()
@@ -97,6 +98,19 @@ render state =
     articleClass = if showFavorites then [ BS.navLink ] else [ BS.navLink, BS.active ]
 
     favoriteClass = if showFavorites then [ BS.navLink, BS.active ] else [ BS.navLink ]
+
+    followButton profile =
+      HH.button
+        [ HP.classes
+            [ BS.btn
+            , if profile.following then BS.btnOutlineSecondary else BS.btnOutlinePrimary
+            , C.actionBtn
+            ]
+        , HE.onClick $ preventDefault $ FollowButtonClicked profile
+        ]
+        [ HH.i [ HP.class_ C.ionPlusRound ] []
+        , HH.text $ (if profile.following then " Unfollow " else " Follow ") <> unwrap profile.username
+        ]
   in
     case state.profile of
       Loading -> HH.div_ [ HH.text "Loading" ]
@@ -110,10 +124,11 @@ render state =
                           [ HH.img [ HP.src $ fromImage profile.image, HP.class_ C.userImg ]
                           , HH.h4_ [ HH.text $ unwrap profile.username ]
                           , HH.p_ [ HH.text $ fromMaybe "" profile.bio ]
-                          , HH.button [ HP.classes [ BS.btn, BS.btnOutlineSecondary, C.actionBtn ] ]
-                              [ HH.i [ HP.class_ C.ionPlusRound ] []
-                              , HH.text $ " Follow " <> unwrap profile.username
-                              ]
+                          , ( state.currentUser
+                                # maybe (const $ HH.div_ [])
+                                    (\u -> if u.username == profile.username then const $ HH.div_ [] else followButton)
+                            )
+                              $ profile
                           ]
                       ]
                   ]
@@ -141,7 +156,7 @@ render state =
   showArticles = case _ of
     Loading -> [ HH.div_ [ HH.text "Loading" ] ]
     LoadError err -> [ HH.div [ HP.classes [ BS.alert, BS.alertDanger ] ] [ Utils.errorDisplay err ] ]
-    Loaded articles -> map (ArticlePreview.render <*> preventDefault <<< FavoritedButton) articles
+    Loaded articles -> map (ArticlePreview.render <*> preventDefault <<< FavoritedButtonClicked) articles
 
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
@@ -160,13 +175,18 @@ handleAction = case _ of
       token = currentUser <#> _.token
     parSequence_ [ loadProfile page token, loadArticles page token ]
     H.modify_ (_ { page = page })
-  FavoritedButton article -> do
+  FavoritedButtonClicked article -> do
     user <- H.gets _.currentUser
     let
       token = user <#> _.token
     token
       # maybe (pure unit) \tok ->
           Utils.favorite article tok (\art -> _ { articles = art }) _.articles
+  FollowButtonClicked profile -> do
+    muser <- H.gets _.currentUser
+    muser
+      # maybe (pure unit) \user ->
+          Utils.follow profile user.token (\prof -> _ { profile = prof })
   PreventDefault event action -> Utils.preventDefault event action handleAction
   where
   setArticles c u v s = s { articles = v, page = c u }

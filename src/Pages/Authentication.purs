@@ -3,9 +3,8 @@ module Pages.Authentication where
 import Prelude
 
 import API as API
-import API.Response (Error, ValidationError, fromError)
+import API.Response (Error)
 import API.Response as R
-import Classes (errorMessages)
 import Classes as C
 import Data.Array (snoc)
 import Data.Const (Const)
