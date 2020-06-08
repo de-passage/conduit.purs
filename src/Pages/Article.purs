@@ -7,8 +7,9 @@ import Classes as C
 import Control.Comonad (extract)
 import Control.Parallel (parSequence_)
 import Data.Article (Article, Slug)
-import Data.Comment (Comment)
+import Data.Comment (Comment, CommentId)
 import Data.Const (Const)
+import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
@@ -42,6 +43,7 @@ type State
     , comments :: LoadState (Array Comment)
     , slug :: Slug
     , currentUser :: Maybe User
+    , comment :: String
     }
 
 data Action
@@ -52,6 +54,9 @@ data Action
   | PreventDefault Event (Maybe Action)
   | DeleteArticle Article
   | EditArticle Article
+  | ChangeComment String
+  | PublishComment User Article
+  | DeleteComment CommentId Article User
 
 type ChildSlots
   = ()
@@ -71,7 +76,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState { slug, currentUser } = { article: Loading, comments: Loading, slug, currentUser }
+initialState { slug, currentUser } = { article: Loading, comments: Loading, slug, currentUser, comment: "" }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
@@ -98,18 +103,7 @@ render state = case state.article of
           , HH.div [ HP.class_ BS.row ]
               [ HH.div [ HP.classes [ C.colXs12, BS.colMd8, BS.offsetMd2 ] ]
                   [ HH.form [ HP.classes [ BS.card, C.commentForm ] ]
-                      ( [ HH.div [ HP.class_ C.cardBlock ]
-                            [ HH.textarea [ HP.class_ BS.formControl, HP.rows 3, HP.placeholder "Write a comment..." ]
-                            ]
-                        , HH.div [ HP.class_ BS.cardFooter ]
-                            [ HH.img [ HP.src "http://i.imgur.com/Qr71crq.jpg", HP.class_ C.commentAuthorImg ]
-                            , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnPrimary ] ]
-                                [ HH.text "Post Comment"
-                                ]
-                            ]
-                        ]
-                          <> comments state.comments
-                      )
+                      $ comments state.comment article state.currentUser state.comments
                   ]
               ]
           ]
@@ -154,6 +148,21 @@ handleAction = case _ of
       # maybe (H.raise $ Redirect loginUrl) \{ token } -> do
           _ <- H.liftAff $ API.request $ API.articleDeletion slug token
           H.raise $ Redirect homeUrl
+  ChangeComment comment -> H.modify_ _ { comment = comment }
+  PublishComment { token } { slug } -> do
+    body <- H.gets _.comment
+    if body /= "" then do
+      req <- H.liftAff $ API.request $ API.commentCreation slug { comment: { body } } token
+      case req of
+        Left err -> pure unit
+        Right comment -> do
+          H.modify_ _ { comment = "" }
+          loadComments slug $ Just token
+    else
+      pure unit
+  DeleteComment id { slug } { token } -> do
+    void $ H.liftAff $ API.request $ API.commentDeletion slug id token
+    loadComments slug $ Just token
   where
   loadArticle slug token = load (API.getArticle slug token) setArticle
 
@@ -213,7 +222,7 @@ articleMeta user article =
       , HE.onClick $ preventDefault (EditArticle article)
       ]
       [ HH.i [ HP.class_ C.ionEdit ] []
-      , HH.text "Edit Article"
+      , HH.text " Edit Article"
       ]
 
   deleteButton :: HH.HTML w Action
@@ -222,8 +231,8 @@ articleMeta user article =
       [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineDanger ]
       , HE.onClick $ preventDefault (DeleteArticle article)
       ]
-      [ HH.i [ HP.class_ C.ionEdit ] []
-      , HH.text "Delete Article"
+      [ HH.i [ HP.class_ C.ionTrashA ] []
+      , HH.text " Delete Article"
       ]
 
   followButton :: Profile -> HH.HTML w Action
@@ -232,13 +241,13 @@ articleMeta user article =
 preventDefault :: Action -> MouseEvent -> Maybe Action
 preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
 
-comments :: forall w i. LoadState (Array Comment) -> Array (HH.HTML w i)
-comments = case _ of
+comments :: forall w. String -> Article -> Maybe User -> LoadState (Array Comment) -> Array (HH.HTML w Action)
+comments currentComment article user = case _ of
   Loading -> [ HH.div_ [ HH.text "Loading comments" ] ]
   LoadError err -> [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay err ] ]
-  Loaded cs -> map mkComment cs
+  Loaded cs -> commentEdition <> map mkComment cs
   where
-  mkComment :: Comment -> HH.HTML w i
+  mkComment :: Comment -> HH.HTML w Action
   mkComment comment =
     HH.div [ HP.class_ BS.card ]
       [ HH.div [ HP.class_ C.cardBlock ]
@@ -252,9 +261,38 @@ comments = case _ of
           , HH.a [ HP.href (profileUrl comment.author.username), HP.class_ C.commentAuthor ]
               [ HH.text $ unwrap comment.author.username ]
           , HH.span [ HP.class_ C.datePosted ] [ HH.text $ comment.createdAt ]
-          , HH.span [ HP.class_ C.modOptions ]
-              [ HH.i [ HP.class_ C.ionEdit ] []
-              , HH.i [ HP.class_ C.ionTrashA ] []
-              ]
+          , HH.span [ HP.class_ C.modOptions ] (options comment.id)
           ]
       ]
+
+  options :: CommentId -> Array (HH.HTML w Action)
+  options commentId =
+    user
+      # maybe [] \u ->
+          [ HH.a [ HP.href "", HE.onClick $ preventDefault $ DeleteComment commentId article u]
+              [ HH.i [ HP.class_ C.ionTrashA ] [] ]
+          ]
+
+  commentEdition :: Array (HH.HTML w Action)
+  commentEdition =
+    user
+      # maybe [ HH.div_ [ HH.a [ HP.href loginUrl ] [ HH.text "Log in to comment" ] ] ] \u ->
+          [ HH.div [ HP.class_ C.cardBlock ]
+              [ HH.textarea
+                  [ HP.class_ BS.formControl
+                  , HP.rows 3
+                  , HP.placeholder "Write a comment..."
+                  , HE.onValueChange $ Just <<< ChangeComment
+                  , HP.value currentComment
+                  ]
+              ]
+          , HH.div [ HP.class_ BS.cardFooter ]
+              [ HH.img [ HP.src $ fromImage u.image, HP.class_ C.commentAuthorImg ]
+              , HH.button
+                  [ HP.classes [ BS.btn, BS.btnSm, BS.btnPrimary ]
+                  , HE.onClick $ preventDefault $ PublishComment u article
+                  ]
+                  [ HH.text "Post Comment"
+                  ]
+              ]
+          ]
