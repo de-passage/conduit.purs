@@ -126,10 +126,10 @@ ionTrashA :: HH.ClassName
 ionTrashA = HH.ClassName "ion-trash-a"
 
 ionDelete :: HH.ClassName
-ionDelete = HH.ClassName "ion-delete"
+ionDelete = HH.ClassName "ion-android-cancel"
 
 ionAdd :: HH.ClassName
-ionAdd = HH.ClassName "ion-add"
+ionAdd = HH.ClassName "ion-plus"
 
 userInfo :: HH.ClassName
 userInfo = HH.ClassName "user-info"

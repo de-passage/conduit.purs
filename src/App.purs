@@ -17,7 +17,7 @@ import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
-import Router (Route(..), route, routeWith404, showArticleUrl)
+import Router (Route(..), homeUrl, profileUrl, redirect, route, routeWith404, showArticleUrl)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
 import Utils as Utils
@@ -151,12 +151,16 @@ handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action
 handleAction = case _ of
   LogOut -> do
     H.liftEffect deleteStoredUser
-    H.modify_ (_ { currentUser = Nothing, currentRoute = Home })
+    H.modify_ (_ { currentUser = Nothing })
+    handleAction $ Redirect homeUrl
   LogIn user -> do
     H.liftEffect $ storeUser user
-    H.modify_ (_ { currentUser = Just user, currentRoute = Home })
-  UpdateUser user -> H.modify_ _ { currentUser = Just user }
-  Redirect url -> pure unit
+    H.modify_ (_ { currentUser = Just user })
+    handleAction $ Redirect homeUrl
+  UpdateUser user -> do
+    H.modify_ _ { currentUser = Just user }
+    handleAction $ Redirect (profileUrl user.username)
+  Redirect url -> H.liftEffect $ redirect url
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -178,8 +182,9 @@ handleAuthenticationMessages =
 
 handleEditionMessages :: Pages.Edition.Output -> Maybe Action
 handleEditionMessages =
-  Just <<< case _ of
-    Pages.Edition.Redirect slug -> Redirect (showArticleUrl slug)
+  Just
+    <<< case _ of
+        Pages.Edition.Redirect slug -> Redirect (showArticleUrl slug)
 
 handleSettingsMessages :: Pages.Settings.Output -> Maybe Action
 handleSettingsMessages =
