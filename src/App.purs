@@ -39,6 +39,8 @@ type ChildSlots
     , profile :: Pages.Profile.Slot Unit
     , authentication :: Pages.Authentication.Slot Unit
     , settings :: Pages.Settings.Slot Unit
+    , newArticle :: Pages.Edition.Slot Unit
+    , editArticle :: Pages.Edition.Slot Unit
     )
 
 type Input
@@ -60,6 +62,12 @@ _authentication = SProxy
 
 _settings :: SProxy "settings"
 _settings = SProxy
+
+_newArticle :: SProxy "newArticle"
+_newArticle = SProxy
+
+_editArticle :: SProxy "editArticle"
+_editArticle = SProxy
 
 component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
@@ -98,8 +106,8 @@ showPage r s = case r of
   Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login handleAuthenticationMessages
   Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register handleAuthenticationMessages
   Settings -> authenticated settings home
-  NewArticle -> Pages.Edition.render
-  EditArticle _ -> Pages.Edition.render
+  NewArticle -> authenticated newArticle home
+  EditArticle slug -> authenticated (editArticle slug) home
   ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } absurd
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
@@ -123,6 +131,21 @@ showPage r s = case r of
 
   home = HH.slot _homePage unit Pages.Home.component s absurd
 
+  newArticle currentUser =
+    HH.slot _newArticle
+      unit
+      Pages.Edition.component
+      { currentAction: Pages.Edition.New, currentUser }
+      absurd
+
+  editArticle slug currentUser =
+    HH.slot
+      _editArticle
+      unit
+      Pages.Edition.component
+      { currentAction: Pages.Edition.Edit slug, currentUser }
+      absurd
+
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
   LogOut -> do
@@ -145,7 +168,6 @@ handleQuery = case _ of
       identity
       (route (\r -> H.modify_ (_ { currentRoute = r })) msg)
     pure (Just a)
-
 
 handleAuthenticationMessages :: Pages.Authentication.Output -> Maybe Action
 handleAuthenticationMessages =
