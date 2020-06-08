@@ -1,0 +1,21 @@
+{
+    "test1": {
+        "errors": {
+            "body": [
+                "empty",
+                "maybe"
+            ]
+        }
+    },
+    "test2": {
+        "errors": {
+            "body": [
+                "empty"
+            ],
+            "name": [
+                "error1",
+                "error2"
+            ]
+        }
+    }
+}
