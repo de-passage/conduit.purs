@@ -100,7 +100,7 @@ showPage r s = case r of
   Settings -> authenticated settings home
   NewArticle -> Pages.Edition.render
   EditArticle _ -> Pages.Edition.render
-  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component slug absurd
+  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } absurd
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Authored username)

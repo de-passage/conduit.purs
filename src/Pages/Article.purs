@@ -1,24 +1,28 @@
 module Pages.Article where
 
 import Prelude
-
 import API as API
 import Classes as C
+import Control.Comonad (extract)
 import Control.Parallel (parSequence_)
 import Data.Article (Article, Slug)
 import Data.Comment (Comment)
 import Data.Const (Const)
-import Data.Maybe (Maybe(..))
+import Data.Identity (Identity(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
-import Data.User (fromImage)
+import Data.User (User, Profile, fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
 import Router (profileUrl)
 import Utils as Utils
+import Web.Event.Internal.Types (Event)
+import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 
 type Query
   = Const Void
@@ -27,7 +31,7 @@ type Output
   = Void
 
 type Input
-  = Slug
+  = { slug :: Slug, currentUser :: Maybe User }
 
 type Slot
   = H.Slot Query Output
@@ -36,11 +40,15 @@ type State
   = { article :: LoadState Article
     , comments :: LoadState (Array Comment)
     , slug :: Slug
+    , currentUser :: Maybe User
     }
 
 data Action
   = Init
-  | Receive Slug
+  | Receive Input
+  | FavoriteButtonClicked Article
+  | FollowButtonClicked Profile
+  | PreventDefault Event (Maybe Action)
 
 type ChildSlots
   = ()
@@ -60,7 +68,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState slug = { article: Loading, comments: Loading, slug }
+initialState { slug, currentUser } = { article: Loading, comments: Loading, slug, currentUser }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
@@ -71,7 +79,7 @@ render state = case state.article of
       [ HH.div [ HP.class_ C.banner ]
           [ HH.div [ HP.class_ BS.container ]
               [ HH.h1_ [ HH.text article.title ]
-              , articleMeta article
+              , articleMeta state.currentUser article
               ]
           ]
       , HH.div [ HP.classes [ BS.container, C.page ] ]
@@ -82,7 +90,7 @@ render state = case state.article of
               ]
           , HH.hr_
           , HH.div [ HP.class_ C.articleActions ]
-              [ articleMeta article
+              [ articleMeta state.currentUser article
               ]
           , HH.div [ HP.class_ BS.row ]
               [ HH.div [ HP.classes [ C.colXs12, BS.colMd8, BS.offsetMd2 ] ]
@@ -112,16 +120,39 @@ handleAction ∷
 handleAction = case _ of
   Init -> do
     state <- H.get
-    handleAction (Receive state.slug)
-  Receive slug -> do
-    parSequence_ [ loadArticle slug, loadComments slug ]
+    handleAction (Receive { slug: state.slug, currentUser: state.currentUser })
+  Receive { slug, currentUser } -> do
+    H.modify_ _ { slug = slug, currentUser = currentUser }
+    let
+      token = currentUser <#> _.token
+    parSequence_ [ loadArticle slug token, loadComments slug token ]
+  FavoriteButtonClicked article -> do
+    state <- H.get
+    state.currentUser
+      # maybe (pure unit) \u ->
+          Utils.favorite
+            article
+            u.token
+            (map extract >>> setArticle)
+            (_.article >>> map Identity)
+  FollowButtonClicked profile -> do
+    state <- H.get
+    state.currentUser
+      # maybe (pure unit) \u ->
+          Utils.follow profile u.token \v s -> case v of
+            Loaded a -> s { article = s.article <#> (_ { author = a }) }
+            _ -> s
+  PreventDefault event action -> do
+    Utils.preventDefault event action handleAction
   where
-  loadArticle slug = load (API.getArticle slug Nothing) (\v -> _ { article = v })
+  loadArticle slug token = load (API.getArticle slug token) setArticle
 
-  loadComments slug = load (API.getComments slug Nothing) (\v -> _ { comments = v })
+  loadComments slug token = load (API.getComments slug token) (\v -> _ { comments = v })
 
-articleMeta :: forall w i. Article -> HH.HTML w i
-articleMeta article =
+  setArticle v = _ { article = v }
+
+articleMeta :: forall w. Maybe User -> Article -> HH.HTML w Action
+articleMeta currentUser article =
   HH.div [ HP.class_ C.articleMeta ]
     [ HH.a [ HP.href (profileUrl article.author.username) ]
         [ HH.img [ HP.src $ fromImage article.author.image ] ]
@@ -129,18 +160,29 @@ articleMeta article =
         [ HH.a [ HP.href (profileUrl article.author.username), HP.class_ C.author ] [ HH.text $ unwrap article.author.username ]
         , HH.span [ HP.class_ C.date ] [ HH.text article.createdAt ]
         ]
-    , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlineSecondary ] ]
-        [ HH.i [ HP.class_ C.ionPlusRound ] []
-        , HH.text $ " Follow " <> unwrap article.author.username <> " "
-        -- , HH.span [ HP.class_ C.counter ] [ HH.text $ "(" <> show article.author.followers <> ")" ]
-        ]
+    , ( currentUser
+          # maybe (const $ HH.div_ [])
+              ( \u ->
+                  if u.username == article.author.username then
+                    const $ HH.div_ []
+                  else
+                    Utils.followButtonC [ BS.btnSm ] (preventDefault <<< FollowButtonClicked)
+              )
+      )
+        $ article.author
     , HH.text "  "
-    , HH.button [ HP.classes [ BS.btn, BS.btnSm, BS.btnOutlinePrimary ] ]
+    , HH.button
+        [ HP.classes [ BS.btn, BS.btnSm, if article.favorited then BS.btnOutlinePrimary else BS.btnPrimary ]
+        , HE.onClick $ preventDefault (FavoriteButtonClicked article)
+        ]
         [ HH.i [ HP.class_ C.ionHeart ] []
-        , HH.text " Favorite Post "
+        , HH.text (if article.favorited then " Unfavorite Post " else " Favorite Post ")
         , HH.span [ HP.class_ C.counter ] [ HH.text $ "(" <> show article.favoritesCount <> ") " ]
         ]
     ]
+
+preventDefault :: Action -> MouseEvent -> Maybe Action
+preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
 
 comments :: forall w i. LoadState (Array Comment) -> Array (HH.HTML w i)
 comments = case _ of

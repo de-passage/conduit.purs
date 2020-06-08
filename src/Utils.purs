@@ -1,12 +1,14 @@
 module Utils where
 
 import Prelude
+
 import API as API
 import API.Response (Error, fromError)
 import Classes as C
 import Data.Article (Article)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe, maybe)
+import Data.Newtype (unwrap)
 import Data.Token (Token)
 import Data.User (Profile)
 import Effect.Aff.Class (class MonadAff)
@@ -14,10 +16,13 @@ import Effect.Class (class MonadEffect)
 import Effect.Class.Console as Console
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..))
 import Unsafe.Coerce as Unsafe
 import Web.Event.Event (Event, preventDefault) as W
+import Web.UIEvent.MouseEvent (MouseEvent)
 
 preventDefault ::
   forall s a c o m.
@@ -63,12 +68,13 @@ follow profile token update = do
     Right prof -> H.modify_ $ update $ Loaded prof.profile
 
 favorite ::
-  forall a c o s m.
+  forall a c o s m f.
   MonadAff m =>
+  Functor f =>
   Article ->
   Token ->
-  (LoadState (Array Article) -> s -> s) ->
-  (s -> LoadState (Array Article)) ->
+  (LoadState (f Article) -> s -> s) ->
+  (s -> LoadState (f Article)) ->
   H.HalogenM s a c o m Unit
 favorite article token update retrieve = do
   request <-
@@ -86,7 +92,7 @@ favorite article token update retrieve = do
     Left _ -> pure unit
     Right art -> H.modify_ $ replace art.article update retrieve
 
-replace :: forall s. Article -> (LoadState (Array Article) -> s -> s) -> (s -> LoadState (Array Article)) -> s -> s
+replace :: forall s f. Functor f => Article -> (LoadState (f Article) -> s -> s) -> (s -> LoadState (f Article)) -> s -> s
 replace article update retrieve state = case retrieve state of
   Loaded arts ->
     update
@@ -104,3 +110,21 @@ errorDisplay errors =
         # map \msg ->
             HH.li [ HP.classes [ C.errorMessages ] ] [ HH.text msg ]
     )
+
+
+followButtonC :: forall w i. Array H.ClassName -> (Profile -> MouseEvent -> Maybe w) -> Profile -> HH.HTML i w
+followButtonC cs action profile =
+  HH.button
+    [ HP.classes
+        ([ BS.btn
+        , if profile.following then BS.btnOutlineSecondary else BS.btnOutlinePrimary
+        , C.actionBtn
+        ] <> cs)
+    , HE.onClick $ action profile
+    ]
+    [ HH.i [ HP.class_ C.ionPlusRound ] []
+    , HH.text $ (if profile.following then " Unfollow " else " Follow ") <> unwrap profile.username
+    ]
+    
+followButton :: forall w i. (Profile -> MouseEvent -> Maybe w) -> Profile -> HH.HTML i w
+followButton = followButtonC []

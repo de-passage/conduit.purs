@@ -1,7 +1,6 @@
 module Pages.Profile where
 
 import Prelude
-
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
@@ -13,7 +12,6 @@ import Data.User (Profile, Username, User, fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
-import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
@@ -98,19 +96,6 @@ render state =
     articleClass = if showFavorites then [ BS.navLink ] else [ BS.navLink, BS.active ]
 
     favoriteClass = if showFavorites then [ BS.navLink, BS.active ] else [ BS.navLink ]
-
-    followButton profile =
-      HH.button
-        [ HP.classes
-            [ BS.btn
-            , if profile.following then BS.btnOutlineSecondary else BS.btnOutlinePrimary
-            , C.actionBtn
-            ]
-        , HE.onClick $ preventDefault $ FollowButtonClicked profile
-        ]
-        [ HH.i [ HP.class_ C.ionPlusRound ] []
-        , HH.text $ (if profile.following then " Unfollow " else " Follow ") <> unwrap profile.username
-        ]
   in
     case state.profile of
       Loading -> HH.div_ [ HH.text "Loading" ]
@@ -126,7 +111,11 @@ render state =
                           , HH.p_ [ HH.text $ fromMaybe "" profile.bio ]
                           , ( state.currentUser
                                 # maybe (const $ HH.div_ [])
-                                    (\u -> if u.username == profile.username then const $ HH.div_ [] else followButton)
+                                    (\u -> 
+                                      if u.username == profile.username then 
+                                        const $ HH.div_ []
+                                      else 
+                                        Utils.followButton (preventDefault <<< FollowButtonClicked))
                             )
                               $ profile
                           ]
