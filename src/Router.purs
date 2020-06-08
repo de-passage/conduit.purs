@@ -11,6 +11,7 @@ module Router
   , editArticleUrl
   , showArticleUrl
   , routeWith404
+  , redirect
   ) where
 
 import Prelude
@@ -21,9 +22,13 @@ import Data.Foldable (oneOf)
 import Data.Maybe (fromMaybe)
 import Data.Newtype (unwrap)
 import Data.User (Username(..))
+import Effect (Effect)
 import Global (decodeURIComponent)
 import Routing.Match (Match, end, lit, runMatch, str, root)
 import Routing.Parser as Parser
+import Web.HTML (window) as DOM
+import Web.HTML.Location (setHash) as DOM
+import Web.HTML.Window (location) as DOM
 
 data Route
   = Home
@@ -133,3 +138,9 @@ route f r =
 routeWith404 :: forall a. (Route -> a) -> String -> a
 routeWith404 f r = route f r
                   # either (\_ -> f (NotFound r)) identity
+
+redirect :: String -> Effect Unit
+redirect url = do
+      window <- DOM.window
+      loc <- DOM.location window
+      DOM.setHash url loc

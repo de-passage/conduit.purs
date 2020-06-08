@@ -1,7 +1,6 @@
 module Templates.ArticlePreview where
 
 import Prelude
-
 import Classes as C
 import Data.Article (Article)
 import Data.Maybe (Maybe)
@@ -33,13 +32,13 @@ render article favorite =
           , HH.button [ HP.classes [ BS.btn, btnStyle, BS.btnSm, C.pullXsRight ], HE.onClick favorite ]
               [ HH.i [ HP.class_ C.ionHeart ] [], HH.text (" " <> show article.favoritesCount)
               ]
+          , HH.a [ HP.href (showArticleUrl article.slug), HP.class_ C.previewLink ]
+              [ HH.h1_ [ HH.text article.title ]
+              , HH.p_ [ HH.text article.description ]
+              , HH.span_ [ HH.text "Read more..." ]
+              , HH.ul [ HP.class_ C.tagList ] (map mkTag article.tagList)
+              ]
           ]
-      , HH.a [ HP.href (showArticleUrl article.slug), HP.class_ C.previewLink ]
-          [ HH.h1_ [ HH.text article.title ]
-          , HH.p_ [ HH.text article.description ]
-          , HH.span_ [ HH.text "Read more..." ]
-          ]
-      , HH.ul [ HP.class_ C.tagList ] (map mkTag article.tagList)
       ]
   where
-    mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
+  mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
