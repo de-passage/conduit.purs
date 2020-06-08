@@ -1,6 +1,7 @@
 module App where
 
 import Prelude
+
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
@@ -17,7 +18,7 @@ import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
-import Router (Route(..), route, routeWith404)
+import Router (Route(..), route, routeWith404, showArticleUrl)
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
 
@@ -136,7 +137,7 @@ showPage r s = case r of
       unit
       Pages.Edition.component
       { currentAction: Pages.Edition.New, currentUser }
-      absurd
+      handleEditionMessages
 
   editArticle slug currentUser =
     HH.slot
@@ -144,7 +145,7 @@ showPage r s = case r of
       unit
       Pages.Edition.component
       { currentAction: Pages.Edition.Edit slug, currentUser }
-      absurd
+      handleEditionMessages
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
@@ -174,6 +175,11 @@ handleAuthenticationMessages =
   Just
     <<< case _ of
         Pages.Authentication.LoginPerformed user -> LogIn user
+
+handleEditionMessages :: Pages.Edition.Output -> Maybe Action
+handleEditionMessages =
+  Just <<< case _ of
+    Pages.Edition.Redirect slug -> Redirect (showArticleUrl slug)
 
 handleSettingsMessages :: Pages.Settings.Output -> Maybe Action
 handleSettingsMessages =
