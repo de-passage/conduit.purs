@@ -12,7 +12,9 @@ exports.markedByElementId = function (elname) {
 };
 
 exports.marked = function (string) {
-    return marked(string, { smartypants: true, silent: true });
+    return function() {
+        return marked(string, { smartypants: true, silent: true });
+    };
 };
 exports.setHTML = function (el) {
     return function (html) {

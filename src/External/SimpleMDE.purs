@@ -2,7 +2,6 @@ module SimpleMDE (component, Query(..), Input(..), Output(..), Slot) where
 
 import Prelude
 
-import Control.Apply (lift2)
 import Control.Bind (bindFlipped)
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA

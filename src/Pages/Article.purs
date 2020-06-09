@@ -13,14 +13,17 @@ import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
+import Data.Symbol (SProxy(..))
 import Data.User (User, Profile, fromImage)
 import Effect.Aff.Class (class MonadAff)
+import Effect.Class (class MonadEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
+import Marked as Marked
 import Router (editArticleUrl, homeUrl, loginUrl, profileUrl)
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
@@ -59,7 +62,9 @@ data Action
   | DeleteComment CommentId Article User
 
 type ChildSlots
-  = ()
+  = ( marked :: Marked.Slot Unit )
+
+_marked = SProxy :: SProxy "marked"
 
 component :: forall m. MonadAff m => H.Component HH.HTML Query Input Output m
 component =
@@ -78,7 +83,7 @@ component =
 initialState :: Input -> State
 initialState { slug, currentUser } = { article: Loading, comments: Loading, slug, currentUser, comment: "" }
 
-render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
+render :: forall m. MonadEffect m => State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
   Loading -> HH.div_ [ HH.text "Loading article" ]
   LoadError error -> HH.div [ HP.class_ C.articlePage ] [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay error ] ]
@@ -93,7 +98,7 @@ render state = case state.article of
       , HH.div [ HP.classes [ BS.container, C.page ] ]
           [ HH.div [ HP.classes [ BS.row, C.articleContent ] ]
               [ HH.div [ HP.class_ BS.colMd12 ]
-                  [ HH.text article.body
+                  [ HH.slot _marked unit Marked.component { text: article.body } absurd
                   ]
               ]
           , HH.hr_

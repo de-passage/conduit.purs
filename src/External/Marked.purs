@@ -51,9 +51,7 @@ component =
 
   render :: forall i. State -> HH.HTML i Action
   render s =
-    HH.div_
-      [ HH.textarea [ HP.ref (H.RefLabel s.contextName) ]
-      ]
+    HH.div [ HP.ref (H.RefLabel s.contextName) ] []
 
   handleAction :: Action -> H.HalogenM State Action () o m Unit
   handleAction = case _ of
