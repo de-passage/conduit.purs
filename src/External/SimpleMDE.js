@@ -10,7 +10,6 @@ exports.simpleMDE = function (elementId) {
 
 exports.createSimpleMDE = function (element) {
     return function () {
-        console.log(element);
         let smde = new SimpleMDE({ element: element });
         return smde;
     };
@@ -26,9 +25,11 @@ exports.onSimpleMDEChange = function (simpleMDE) {
     };
 };
 
-exports.setSimpleMDEValue = function (value, simpleMDE) {
-    return function () {
-        simpleMDE.value = value;
+exports.setSimpleMDEValue = function (value) {
+    return function (simpleMDE) {
+        return function () {
+            simpleMDE.value(value);
+        };
     };
 };
 

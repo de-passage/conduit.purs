@@ -30,7 +30,7 @@ foreign import setSimpleMDEValue :: String -> SimpleMDE -> (Effect Unit)
 
 data Query a
   = GetContent (String -> a)
-  | SetContent String a
+  | SetContent String (Unit -> a)
 
 data Output
   = ValueChanged String
@@ -101,15 +101,16 @@ component =
   handleQuery :: forall a. Query a -> H.HalogenM State Action () Output m (Maybe a)
   handleQuery = case _ of
     GetContent sendValue -> do
-      mmde <- H.gets _.simpleMDE
-      mmde
+      state <- H.get
+      mel <- H.getHTMLElementRef (H.RefLabel state.contextName)
+      state.simpleMDE
         # maybe (pure Nothing) \mde -> do
             value <- H.liftEffect $ getSimpleMDEValue <$> mde
             pure $ Just $ sendValue value
     SetContent newValue a -> do
       mmde <- H.gets _.simpleMDE
       H.liftEffect $ mmde # maybe (pure unit) (setContent newValue)
-      pure $ Just a :: H.HalogenM State Action () Output m (Maybe a)
+      pure $ Just $ a unit
     where
       setContent :: String -> Effect SimpleMDE -> Effect Unit
       setContent newValue = bindFlipped $ setSimpleMDEValue newValue 

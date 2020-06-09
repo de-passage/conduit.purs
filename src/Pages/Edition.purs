@@ -181,7 +181,8 @@ handleAction = case _ of
       req <- H.liftAff $ API.request $ API.article slug (Just currentUser.token)
       case req of
         Left err -> H.modify_ _ { errorMessages = Just err }
-        Right { article } ->
+        Right { article } -> do
+          void $ H.query _textEditor unit (H.request $ SimpleMDE.SetContent article.body)
           H.modify_
             _
               { article
