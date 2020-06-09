@@ -199,7 +199,7 @@ handleAction = case _ of
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
     { currentUser, article, currentAction } <- H.get
-    body <- H.query _textEditor unit (H.request SimpleMDE.Value)
+    body <- H.query _textEditor unit (H.request SimpleMDE.GetContent)
     let
       nart =
         { article:
