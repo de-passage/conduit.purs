@@ -22,6 +22,7 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Token (Token) as Token
 import Effect (Effect)
+import Effect.Class.Console as Console
 import Web.HTML as DOM
 import Web.HTML.Window (localStorage)
 import Web.Storage.Storage (getItem, removeItem, setItem)

@@ -2,16 +2,20 @@ module Main where
 
 import Prelude
 
+import API as API
+import API.Response as R
 import App as App
 import Control.Coroutine as CR
 import Control.Coroutine.Aff as CRA
-import Data.Foldable (traverse_)
-import Data.Maybe (Maybe(..))
+import Data.Either (Either(..))
+import Data.Foldable (intercalate, traverse_)
+import Data.Maybe (Maybe(..), maybe)
 import Data.String.CodeUnits as Str
 import Data.User as User
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console as Console
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
@@ -26,9 +30,18 @@ import Web.HTML.Window as Window
 main :: Effect Unit
 main = do
   url <- DOM.window >>= DOM.location >>= DOM.hash <#> dropHost
-  user <- User.retrieveUser
+  decoded <- User.retrieveUser
   HA.runHalogenAff do
     body <- HA.awaitBody
+    user <- 
+      decoded # maybe (pure Nothing) \{ token } -> do
+        req <- API.request $ API.currentUser token
+        case req of
+          Left err -> do
+            Console.log $ intercalate "\n" $ R.fromError err
+            pure $ Nothing :: Aff (Maybe User.User)
+          Right user -> 
+            pure $ Just user.user :: Aff (Maybe User.User)
     io <- runUI App.component { url, user } body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
