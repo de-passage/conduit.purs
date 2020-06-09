@@ -1,6 +1,7 @@
 module Pages.Edition where
 
 import Prelude
+
 import API as API
 import API.Response (Error)
 import Classes as C
@@ -8,7 +9,8 @@ import Data.Array (filter, nub, snoc)
 import Data.Article (Slug)
 import Data.Const (Const)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Symbol (SProxy(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Halogen as H
@@ -16,6 +18,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import SimpleMDE as SimpleMDE
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent (toEvent)
@@ -37,7 +40,6 @@ type State
     , currentAction :: EditionType
     , article ::
         { description :: String
-        , body :: String
         , title :: String
         , tagList :: Array String
         }
@@ -55,9 +57,12 @@ type Input
     }
 
 type ChildSlots
-  = ()
+  = ( textEditor :: SimpleMDE.Slot Unit )
 
-data Output = Redirect Slug
+_textEditor = SProxy :: SProxy "textEditor"
+
+data Output
+  = Redirect Slug
 
 type Query
   = Const Void
@@ -84,8 +89,7 @@ initialState { currentUser, currentAction } =
   { currentUser: currentUser
   , currentAction: currentAction
   , article:
-      { body: ""
-      , title: ""
+      { title: ""
       , tagList: []
       , description: ""
       }
@@ -93,7 +97,7 @@ initialState { currentUser, currentAction } =
   , errorMessages: Nothing
   }
 
-render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
+render :: forall m. MonadAff m => State -> HH.ComponentHTML Action ChildSlots m
 render state =
   HH.div [ HP.class_ C.editorPage ]
     [ HH.div [ HP.classes [ BS.container, C.page ] ]
@@ -120,15 +124,9 @@ render state =
                                 , HP.value state.article.description
                                 ]
                             ]
-                        , HH.fieldset [ HP.class_ BS.formGroup ]
-                            [ HH.textarea
-                                [ HP.class_ BS.formControl
-                                , HP.rows 8
-                                , HP.placeholder "Write your article (in markdown)"
-                                , HE.onValueChange (Just <<< ChangeContent)
-                                , HP.value state.article.body
-                                ]
-                            ]
+                        , HH.slot _textEditor unit SimpleMDE.component
+                            { placeholder: "Write your article here (in markdown)...", contextName: "article-body" }
+                            (const Nothing)
                         , HH.fieldset [ HP.class_ BS.formGroup ]
                             [ HH.div [ HP.class_ BS.formInline ]
                                 [ HH.input
@@ -187,14 +185,13 @@ handleAction = case _ of
           H.modify_
             _
               { article
-                { body = article.body
-                , description = article.description
+                { description = article.description
                 , tagList = article.tagList <#> show
                 , title = article.title
                 }
               }
   PreventDefault event action -> Utils.preventDefault event action handleAction
-  ChangeContent content -> H.modify_ _ { article { body = content } }
+  ChangeContent content -> pure unit --H.modify_ _ { article { body = content } }
   ChangeDescription description -> H.modify_ _ { article { description = description } }
   ChangeTag tag -> H.modify_ _ { currentTag = tag }
   ChangeTitle title -> H.modify_ _ { article { title = title } }
@@ -202,10 +199,20 @@ handleAction = case _ of
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
     { currentUser, article, currentAction } <- H.get
+    body <- H.query _textEditor unit (H.request SimpleMDE.Value)
+    let
+      nart =
+        { article:
+            { body: fromMaybe "" body
+            , title: article.title
+            , description: article.description
+            , tagList: article.tagList
+            }
+        }
     H.modify_ _ { errorMessages = Nothing }
     case currentAction of
-      Edit slug -> request $ API.articleEdition slug { article } currentUser.token
-      New -> request $ API.articleCreation { article } currentUser.token
+      Edit slug -> request $ API.articleEdition slug nart currentUser.token
+      New -> request $ API.articleCreation nart currentUser.token
   where
   add tag list = if tag /= "" then list `snoc` tag # nub else list
 
