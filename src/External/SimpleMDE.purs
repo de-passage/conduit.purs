@@ -102,7 +102,7 @@ component =
   handleQuery = case _ of
     GetContent sendValue -> do
       state <- H.get
-      mel <- H.getHTMLElementRef (H.RefLabel state.contextName)
+      --mel <- H.getHTMLElementRef (H.RefLabel state.contextName)
       state.simpleMDE
         # maybe (pure Nothing) \mde -> do
             value <- H.liftEffect $ getSimpleMDEValue <$> mde
