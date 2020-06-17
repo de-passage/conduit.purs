@@ -108,7 +108,7 @@ limitedFeed opts =
   else
     feed
   where
-  options = intercalate ";" prefixed
+  options = intercalate "&" prefixed
 
   prefixed = catMaybes
     [ prefix "limit" opts.limit
@@ -156,7 +156,7 @@ articles opts =
   else
     allArticles
   where
-  options = intercalate ";" prefixed
+  options = intercalate "&" prefixed
 
   prefixed = catMaybes
     [ prefix "author" opts.author
