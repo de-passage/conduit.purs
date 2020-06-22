@@ -1,12 +1,14 @@
-module Pages.DevTools (Output(..), Slot, Query(..)) where
+module Pages.DevTools (Output(..), Slot, Query(..), component) where
 
 import Prelude
+import API.Url (UrlRepository)
 import Data.Const (Const)
 import Data.Root (Root)
 import Halogen as H
+import Halogen.HTML as HH
 
 type Input
-  = ()
+  = { urls :: UrlRepository }
 
 data Output
   = RootChanged Root
@@ -22,6 +24,23 @@ data Action
   | ChangeCustomRootText String
 
 type State
-  = { root :: String
+  = { urls :: UrlRepository
     , customRootText :: String
     }
+
+type ChildSlots
+  = ()
+
+component :: forall q m. H.Component HH.HTML q Input Output m
+component =
+  H.mkComponent
+    { initialState
+    , render
+    , eval: H.mkEval $ H.defaultEval
+    }
+  where
+  initialState :: Input -> State
+  initialState { urls } = { urls, customRootText: "" }
+
+  render :: State -> H.ComponentHTML Action () m
+  render _ = HH.div_ [ HH.text "Hello dev tools!" ]

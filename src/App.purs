@@ -46,6 +46,7 @@ type ChildSlots
     , settings :: Pages.Settings.Slot Unit
     , newArticle :: Pages.Edition.Slot Unit
     , editArticle :: Pages.Edition.Slot Unit
+    , devTools :: Pages.DevTools.Slot Unit
     )
 
 type Input
@@ -74,6 +75,9 @@ _newArticle = SProxy
 
 _editArticle :: SProxy "editArticle"
 _editArticle = SProxy
+
+_devTools :: SProxy "devTools"
+_devTools = SProxy
 
 component :: forall o m. MonadAff m => H.Component HH.HTML Query Input o m
 component =
@@ -139,6 +143,7 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       }
       absurd
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
+  DevTools -> HH.slot _devTools unit Pages.DevTools.component { urls } handleDevToolMessages
   where
   authenticated a b = case currentUser of
     Just user -> a user
