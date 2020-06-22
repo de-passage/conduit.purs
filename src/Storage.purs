@@ -82,7 +82,7 @@ saveRepository repo = do
   where
   public = "public"
 
-  localhost i = { localhost: show i }
+  localhost i = { localhost: i }
 
   custom s = { custom: s }
 

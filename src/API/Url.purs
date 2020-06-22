@@ -13,7 +13,7 @@ import Data.Array (catMaybes, intercalate, length)
 import Data.Article (Slug)
 import Data.Comment (CommentId)
 import Data.Maybe (Maybe(..))
-import Data.Root (Root(..))
+import Data.Root (Root)
 import Data.Tag (Tag)
 import Data.User (Username)
 import Prelude (class Show, show, ($), (<#>), (<>), (>))
@@ -27,28 +27,10 @@ instance showUrl :: Show Url where
 class ShowUnquoted m where
   showUnquoted :: m -> String
 
-instance showUnquotedRoot :: ShowUnquoted Root where
-  showUnquoted PublicApi = "https://conduit.productionready.io/api/"
-  showUnquoted (LocalHost port) = "https://localhost:" <> show port <> "/api/"
-  showUnquoted (CustomBackend url) = url
-
-instance showUnquotedUrl :: ShowUnquoted Url where
-  showUnquoted = show
-
-instance showUnquotedUsername :: ShowUnquoted Username where
-  showUnquoted = show
-
-instance showUnquotedSlug :: ShowUnquoted Slug where
-  showUnquoted = show
-
-instance showUnquotedTag :: ShowUnquoted Tag where
-  showUnquoted = show
-
-instance showUnquotedCommentId :: ShowUnquoted CommentId where
-  showUnquoted = show
-
 instance showUnquotedString :: ShowUnquoted String where
   showUnquoted s = s
+else instance showUnquotedShow :: Show s => ShowUnquoted s where
+  showUnquoted = show
 
 combine :: forall a b. ShowUnquoted a => ShowUnquoted b => a -> b -> Url
 combine a b = Url $ showUnquoted a <> showUnquoted b

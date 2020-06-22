@@ -145,3 +145,6 @@ articleToggle = HH.ClassName "article-toggle"
 
 attribution :: HH.ClassName
 attribution = HH.ClassName "attribution"
+
+radio :: HH.ClassName
+radio = HH.ClassName "radio"
