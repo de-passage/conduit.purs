@@ -30,7 +30,7 @@ class ShowUnquoted m where
 instance showUnquotedRoot :: ShowUnquoted Root where
   showUnquoted PublicApi = "https://conduit.productionready.io/api/"
   showUnquoted (LocalHost port) = "https://localhost:" <> show port <> "/api/"
-  showUnquoted (Custom url) = url
+  showUnquoted (CustomBackend url) = url
 
 instance showUnquotedUrl :: ShowUnquoted Url where
   showUnquoted = show
@@ -56,7 +56,7 @@ combine a b = Url $ showUnquoted a <> showUnquoted b
 infixl 4 combine as <.>
 
 type UrlRepository
-  = { root :: Url
+  = { root :: Root
     , article :: Slug -> Url
     , articles :: ArticleOptions -> Url
     , allArticles :: Url
@@ -78,7 +78,7 @@ type UrlRepository
     }
 
 repository :: Root -> UrlRepository
-repository r =
+repository root =
   { root
   , article
   , articles
@@ -100,9 +100,6 @@ repository r =
   , register
   }
   where
-  root :: Url
-  root = Url $ showUnquoted r
-
   allArticles :: Url
   allArticles = root <.> "articles/"
 

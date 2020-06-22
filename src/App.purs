@@ -5,7 +5,7 @@ import API.Url as Urls
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
-import Data.Root (Root(..))
+import Data.Root (Root)
 import Data.Symbol (SProxy(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
@@ -14,6 +14,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Pages.Article as Pages.Article
 import Pages.Authentication as Pages.Authentication
+import Pages.DevTools as Pages.DevTools
 import Pages.Edition as Pages.Edition
 import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
@@ -32,6 +33,7 @@ data Action
   | LogIn User
   | Redirect String
   | UpdateUser User
+  | ChangeUrls Root
 
 data Query a
   = ChangeRoute String a
@@ -49,6 +51,7 @@ type ChildSlots
 type Input
   = { url :: String
     , user :: Maybe User
+    , repo :: Urls.UrlRepository
     }
 
 _homePage :: SProxy "homepage"
@@ -86,7 +89,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState { url, user } = { currentRoute: initialRoute, currentUser: user, urls: Urls.repository PublicApi }
+initialState { url, user, repo } = { currentRoute: initialRoute, currentUser: user, urls: repo }
   where
   initialRoute :: Route
   initialRoute =
@@ -177,6 +180,13 @@ handleAction = case _ of
     H.modify_ _ { currentUser = Just user }
     handleAction $ Redirect (profileUrl user.username)
   Redirect url -> H.liftEffect $ redirect url
+  ChangeUrls root -> do
+    let
+      newRepo = Urls.repository root
+    H.liftEffect do
+      S.saveRepository newRepo
+      S.deleteStoredUser
+    H.modify_ _ { currentUser = Nothing, urls = newRepo }
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -214,3 +224,9 @@ handleSettingsMessages =
     <<< case _ of
         Pages.Settings.LogOutRequested -> LogOut
         Pages.Settings.UserUpdated user -> UpdateUser user
+
+handleDevToolMessages :: Pages.DevTools.Output -> Maybe Action
+handleDevToolMessages =
+  Just
+    <<< case _ of
+        Pages.DevTools.RootChanged root -> ChangeUrls root

@@ -43,7 +43,7 @@ main = do
                 Console.log $ intercalate "\n" $ R.fromError err
                 pure $ Nothing :: Aff (Maybe User.User)
               Right user -> pure $ Just user.user :: Aff (Maybe User.User)
-    io <- runUI App.component { url, user } body
+    io <- runUI App.component { url, user, repo } body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
 -- taken from the Halogen examples 

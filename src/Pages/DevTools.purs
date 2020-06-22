@@ -1,4 +1,4 @@
-module Pages.DevTools where
+module Pages.DevTools (Output(..), Slot, Query(..)) where
 
 import Prelude
 import Data.Const (Const)
@@ -9,7 +9,7 @@ type Input
   = ()
 
 data Output
-  = RootChanged String
+  = RootChanged Root
 
 type Query
   = Const Void
