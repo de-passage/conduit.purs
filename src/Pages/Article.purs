@@ -1,11 +1,11 @@
 module Pages.Article where
 
 import Prelude
-
 import API as API
 import Classes as C
 import Control.Comonad (extract)
 import Control.Parallel (parSequence_)
+import Data.Array (cons)
 import Data.Article (Article, Slug)
 import Data.Comment (Comment, CommentId)
 import Data.Const (Const)
@@ -107,9 +107,8 @@ render state = case state.article of
               ]
           , HH.div [ HP.class_ BS.row ]
               [ HH.div [ HP.classes [ C.colXs12, BS.colMd8, BS.offsetMd2 ] ]
-                  [ HH.form [ HP.classes [ BS.card, C.commentForm ] ]
-                      $ comments state.comment article state.currentUser state.comments
-                  ]
+                  ( comments state.comment article state.currentUser state.comments
+                  )
               ]
           ]
       ]
@@ -250,7 +249,12 @@ comments :: forall w. String -> Article -> Maybe User -> LoadState (Array Commen
 comments currentComment article user = case _ of
   Loading -> [ HH.div_ [ HH.text "Loading comments" ] ]
   LoadError err -> [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay err ] ]
-  Loaded cs -> commentEdition <> map mkComment cs
+  Loaded cs ->
+    ( HH.form [ HP.classes [ BS.card, C.commentForm ] ]
+        commentEdition
+    )
+      `cons`
+        map mkComment cs
   where
   mkComment :: Comment -> HH.HTML w Action
   mkComment comment =
@@ -274,7 +278,7 @@ comments currentComment article user = case _ of
   options commentId =
     user
       # maybe [] \u ->
-          [ HH.a [ HP.href "", HE.onClick $ preventDefault $ DeleteComment commentId article u]
+          [ HH.a [ HP.href "", HE.onClick $ preventDefault $ DeleteComment commentId article u ]
               [ HH.i [ HP.class_ C.ionTrashA ] [] ]
           ]
 
