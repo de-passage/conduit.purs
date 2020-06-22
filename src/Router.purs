@@ -1,6 +1,7 @@
 module Router
   ( Route(..)
   , route
+  , devToolsUrl
   , homeUrl
   , settingsUrl
   , profileUrl
@@ -15,7 +16,6 @@ module Router
   ) where
 
 import Prelude
-
 import Data.Article (Slug(..))
 import Data.Either (Either, either)
 import Data.Foldable (oneOf)
@@ -41,7 +41,8 @@ data Route
   | Profile Username
   | Favorites Username
   | NotFound String
-  
+  | DevTools
+
 instance showRoute :: Show Route where
   show Home = "Home"
   show Register = "Register"
@@ -52,6 +53,7 @@ instance showRoute :: Show Route where
   show (ShowArticle s) = "ShowArticle " <> unwrap s
   show (Profile u) = "Profile " <> unwrap u
   show (Favorites u) = "Favorites " <> unwrap u
+  show DevTools = "DevTool"
   show (NotFound url) = "Url not found: " <> url
 
 home :: Match Route
@@ -59,6 +61,12 @@ home = Home <$ end
 
 homeUrl :: String
 homeUrl = "#/"
+
+devToolsUrl :: String
+devToolsUrl = "#/dev/"
+
+devTools :: Match Route
+devTools = DevTools <$ lit "dev" <* end
 
 login :: Match Route
 login = Login <$ lit "login" <* end
@@ -127,6 +135,7 @@ router =
         , showArticle
         , profile
         , favorites
+        , devTools
         ]
 
 route :: forall a. (Route -> a) -> String -> Either String a
@@ -136,11 +145,12 @@ route f r =
     # map f
 
 routeWith404 :: forall a. (Route -> a) -> String -> a
-routeWith404 f r = route f r
-                  # either (\_ -> f (NotFound r)) identity
+routeWith404 f r =
+  route f r
+    # either (\_ -> f (NotFound r)) identity
 
 redirect :: String -> Effect Unit
 redirect url = do
-      window <- DOM.window
-      loc <- DOM.location window
-      DOM.setHash url loc
+  window <- DOM.window
+  loc <- DOM.location window
+  DOM.setHash url loc

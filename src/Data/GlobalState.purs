@@ -1,10 +1,26 @@
 module Data.GlobalState where
 
+import API.Url (UrlRepository)
 import Data.Maybe (Maybe)
 import Data.User (User)
 import Router (Route)
 
-type State = 
-    { currentRoute :: Route
-    , currentUser :: Maybe User
-    }
+type State
+  = Record
+      ( WithCommon
+          ( currentRoute :: Route
+          )
+      )
+
+type WithUser r
+  = ( currentUser :: Maybe User
+    | r
+    )
+
+type WithUrls r
+  = ( urls :: UrlRepository
+    | r
+    )
+
+type WithCommon r
+  = WithUser (WithUrls r)

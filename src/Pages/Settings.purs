@@ -1,13 +1,13 @@
 module Pages.Settings where
 
 import Prelude
-
 import API as API
 import API.Response as R
 import Classes as C
 import Control.Alt ((<|>))
 import Data.Const (Const)
 import Data.Either (Either(..))
+import Data.GlobalState (WithUrls)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.User (User, toMaybe)
 import Effect.Aff.Class (class MonadAff)
@@ -21,7 +21,7 @@ import Web.Event.Event (Event)
 import Web.UIEvent.MouseEvent (toEvent)
 
 type Input
-  = User
+  = Record (WithUrls ( currentUser :: User ))
 
 data Output
   = LogOutRequested
@@ -40,19 +40,22 @@ data Action
 type Query
   = Const Void
 
-type EditedUser = 
-        { bio :: Maybe String
-        , email :: Maybe String
-        , password :: Maybe String
-        , image :: Maybe String
-        , username :: Maybe String
-        }
+type EditedUser
+  = { bio :: Maybe String
+    , email :: Maybe String
+    , password :: Maybe String
+    , image :: Maybe String
+    , username :: Maybe String
+    }
 
 type State
-  = { currentUser :: User
-    , editedUser :: EditedUser
-    , errorMessages :: Maybe R.Error
-    }
+  = Record
+      ( WithUrls
+          ( currentUser :: User
+          , editedUser :: EditedUser
+          , errorMessages :: Maybe R.Error
+          )
+      )
 
 type ChildSlots
   = ()
@@ -69,8 +72,9 @@ component =
     }
   where
   initialState :: Input -> State
-  initialState currentUser =
-    { currentUser
+  initialState { urls, currentUser } =
+    { urls
+    , currentUser
     , editedUser:
         { bio: Nothing
         , username: Nothing
@@ -135,21 +139,25 @@ render state =
                                 , HE.onValueChange (Just <<< ChangePassword)
                                 ]
                             ]
-                        , HH.button [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
-                            , HE.onClick $ preventDefault UpdateSettings ]
+                        , HH.button
+                            [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
+                            , HE.onClick $ preventDefault UpdateSettings
+                            ]
                             [ HH.text "Update Settings"
                             ]
                         ]
-                        , HH.button [ HP.classes [ BS.btn, BS.btnOutlineDanger ]
-                            , HE.onClick $ preventDefault LogOut ]
-                            [ HH.text "Log out"]
+                    , HH.button
+                        [ HP.classes [ BS.btn, BS.btnOutlineDanger ]
+                        , HE.onClick $ preventDefault LogOut
+                        ]
+                        [ HH.text "Log out" ]
                     ]
                 ]
             ]
         ]
     ]
-    where
-      preventDefault action e = Just (PreventDefault (toEvent e) (Just action))
+  where
+  preventDefault action e = Just (PreventDefault (toEvent e) (Just action))
 
 handleAction :: forall m. MonadAff m => Action -> H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
@@ -161,26 +169,25 @@ handleAction = case _ of
   LogOut -> H.raise LogOutRequested
   PreventDefault event action -> Utils.preventDefault event action handleAction
   UpdateSettings -> do
-    cur <- H.gets _.currentUser
-    edited <- H.gets _.editedUser
+    { currentUser, editedUser, urls } <- H.get
     req <-
       H.liftAff
-        $ API.request 
-        $ API.updateUser (mkPayload cur edited)
-            cur.token
-    case req of  
+        $ API.request
+        $ API.updateUser urls (mkPayload currentUser editedUser)
+            currentUser.token
+    case req of
       Left error -> H.modify_ _ { errorMessages = Just error }
       Right user -> do
-        H.modify_ _ { errorMessages = Nothing}
+        H.modify_ _ { errorMessages = Nothing }
         H.raise (UserUpdated user.user)
   where
-    mkPayload :: User -> EditedUser -> API.UserUpdatePayload
-    mkPayload cur edited = 
-      { user: { 
-                  username: fromMaybe (show cur.username) edited.username
-                  , bio: edited.bio <|> cur.bio 
-                  , email: fromMaybe (show cur.email) edited.email
-                  , password: edited.password
-                  , image:  edited.image <|> toMaybe cur.image 
-                  }
-              }
+  mkPayload :: User -> EditedUser -> API.UserUpdatePayload
+  mkPayload cur edited =
+    { user:
+        { username: fromMaybe (show cur.username) edited.username
+        , bio: edited.bio <|> cur.bio
+        , email: fromMaybe (show cur.email) edited.email
+        , password: edited.password
+        , image: edited.image <|> toMaybe cur.image
+        }
+    }

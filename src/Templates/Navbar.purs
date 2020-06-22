@@ -1,7 +1,6 @@
 module Templates.Navbar where
 
 import Prelude
-
 import Classes as C
 import Data.Array (snoc)
 import Data.Maybe (Maybe(..))
@@ -10,7 +9,7 @@ import Data.User (User)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
-import Router (homeUrl, newArticleUrl, profileUrl, registerUrl, settingsUrl, loginUrl)
+import Router (devToolsUrl, homeUrl, loginUrl, newArticleUrl, profileUrl, registerUrl, settingsUrl)
 
 type Input
   = Maybe User
@@ -29,6 +28,8 @@ render user =
       navItem [ BS.active ]
         [ HH.text "Home" ]
         homeUrl
+
+    devTools = navItem [] [ HH.text "Developers" ] devToolsUrl
 
     newArticle =
       navItem []
@@ -53,11 +54,13 @@ render user =
     content = case user of
       Nothing ->
         [ home
+        , devTools
         , signUp
         , signIn
         ]
       Just u ->
         [ home
+        , devTools
         , newArticle
         , settings
         , profile u.username

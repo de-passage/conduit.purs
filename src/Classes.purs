@@ -105,7 +105,7 @@ commentForm :: HH.ClassName
 commentForm = HH.ClassName "comment-form"
 
 cardBlock :: HH.ClassName
-cardBlock = HH.ClassName "card-group"
+cardBlock = HH.ClassName "card-block"
 
 commentAuthorImg :: HH.ClassName
 commentAuthorImg = HH.ClassName "comment-author-img"
@@ -145,3 +145,6 @@ articleToggle = HH.ClassName "article-toggle"
 
 attribution :: HH.ClassName
 attribution = HH.ClassName "attribution"
+
+radio :: HH.ClassName
+radio = HH.ClassName "radio"
