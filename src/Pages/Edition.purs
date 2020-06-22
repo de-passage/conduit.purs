@@ -1,7 +1,6 @@
 module Pages.Edition where
 
 import Prelude
-
 import API as API
 import API.Response (Error)
 import Classes as C
@@ -9,6 +8,7 @@ import Data.Array (filter, nub, snoc)
 import Data.Article (Slug)
 import Data.Const (Const)
 import Data.Either (Either(..))
+import Data.GlobalState (WithUrls)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Symbol (SProxy(..))
 import Data.User (User)
@@ -36,25 +36,31 @@ data Action
   | PreventDefault Event (Maybe Action)
 
 type State
-  = { currentUser :: User
-    , currentAction :: EditionType
-    , article ::
-        { description :: String
-        , title :: String
-        , tagList :: Array String
-        }
-    , currentTag :: String
-    , errorMessages :: Maybe Error
-    }
+  = Record
+      ( WithUrls
+          ( currentUser :: User
+          , currentAction :: EditionType
+          , article ::
+              { description :: String
+              , title :: String
+              , tagList :: Array String
+              }
+          , currentTag :: String
+          , errorMessages :: Maybe Error
+          )
+      )
 
 data EditionType
   = New
   | Edit Slug
 
 type Input
-  = { currentUser :: User
-    , currentAction :: EditionType
-    }
+  = Record
+      ( WithUrls
+          ( currentUser :: User
+          , currentAction :: EditionType
+          )
+      )
 
 type ChildSlots
   = ( textEditor :: SimpleMDE.Slot Unit )
@@ -85,7 +91,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState { currentUser, currentAction } =
+initialState { currentUser, currentAction, urls } =
   { currentUser: currentUser
   , currentAction: currentAction
   , article:
@@ -95,6 +101,7 @@ initialState { currentUser, currentAction } =
       }
   , currentTag: ""
   , errorMessages: Nothing
+  , urls
   }
 
 render :: forall m. MonadAff m => State -> HH.ComponentHTML Action ChildSlots m
@@ -173,12 +180,12 @@ handleAction ∷
   H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
-    { currentAction, currentUser } <- H.get
-    handleAction $ Receive { currentAction, currentUser }
-  Receive { currentAction, currentUser } -> case currentAction of
+    { currentAction, currentUser, urls } <- H.get
+    handleAction $ Receive { currentAction, currentUser, urls }
+  Receive { currentAction, currentUser, urls } -> case currentAction of
     New -> pure unit
     Edit slug -> do
-      req <- H.liftAff $ API.request $ API.article slug (Just currentUser.token)
+      req <- H.liftAff $ API.request $ API.article urls slug (Just currentUser.token)
       case req of
         Left err -> H.modify_ _ { errorMessages = Just err }
         Right { article } -> do
@@ -199,7 +206,7 @@ handleAction = case _ of
   AddTag -> H.modify_ \s -> s { article { tagList = add s.currentTag s.article.tagList }, currentTag = "" }
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
-    { currentUser, article, currentAction } <- H.get
+    { currentUser, article, currentAction, urls } <- H.get
     body <- H.query _textEditor unit (H.request SimpleMDE.GetContent)
     let
       nart =
@@ -212,8 +219,8 @@ handleAction = case _ of
         }
     H.modify_ _ { errorMessages = Nothing }
     case currentAction of
-      Edit slug -> request $ API.articleEdition slug nart currentUser.token
-      New -> request $ API.articleCreation nart currentUser.token
+      Edit slug -> request $ API.articleEdition urls slug nart currentUser.token
+      New -> request $ API.articleCreation urls nart currentUser.token
   where
   add tag list = if tag /= "" then list `snoc` tag # nub else list
 

@@ -6,7 +6,7 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
-import Data.GlobalState as GlobalState
+import Data.GlobalState (WithCommon)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Tag (Tag)
@@ -33,7 +33,7 @@ type Slot
   = H.Slot Query Output
 
 type Input
-  = GlobalState.State
+  = Record (WithCommon ())
 
 data Tab
   = GlobalFeed
@@ -41,15 +41,17 @@ data Tab
   | PersonalFeed User
 
 type State
-  = { tags :: LoadState (Array Tag)
-    , articles :: LoadState (Array Article)
-    , selected :: Tab
-    , currentUser :: Maybe User
-    }
+  = Record
+      ( WithCommon
+          ( tags :: LoadState (Array Tag)
+          , articles :: LoadState (Array Article)
+          , selected :: Tab
+          )
+      )
 
 data Action
   = Init
-  | Receive (Maybe User)
+  | Receive Input
   | TabSelected Tab
   | PreventDefault Event (Maybe Action)
   | Favorited Article
@@ -67,16 +69,17 @@ component =
           $ H.defaultEval
               { handleAction = handleAction
               , initialize = Just Init
-              , receive = Just <<< Receive <<< _.currentUser
+              , receive = Just <<< Receive
               }
     }
 
 initialState :: Input -> State
-initialState { currentUser } =
+initialState { currentUser, urls } =
   { articles: Loading
   , tags: Loading
   , selected: maybe GlobalFeed PersonalFeed currentUser
   , currentUser
+  , urls
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -182,56 +185,53 @@ handleAction ∷
   H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
   Init -> do
-    state <- H.gets _.currentUser
-    handleAction (Receive state)
-  Receive user ->
+    { currentUser, urls } <- H.get
+    handleAction (Receive { currentUser, urls })
+  Receive { currentUser, urls } ->
     let
-      loadArts = maybe (loadArticles Nothing) loadPersonal user
+      loadArts = maybe (loadArticles urls Nothing) (loadPersonal urls) currentUser
     in
       do
-        parSequence_ [ loadArts, loadTags ]
+        parSequence_ [ loadArts, loadTags urls ]
   TabSelected tab -> do
-    state <- H.get
-    let
-      currentTab = state.selected
-    let
-      user = state.currentUser
+    { selected, currentUser, urls } <- H.get
     case tab of
-      TagFeed tag -> case currentTab of
+      TagFeed tag -> case selected of
         TagFeed currentTag ->
           if tag /= currentTag then
-            loadTagged tag (user <#> _.token)
+            loadTagged urls tag (currentUser <#> _.token)
           else
             pure unit
-        _ -> loadTagged tag (user <#> _.token)
-      GlobalFeed -> case currentTab of
+        _ -> loadTagged urls tag (currentUser <#> _.token)
+      GlobalFeed -> case selected of
         GlobalFeed -> pure unit
         _ -> do
-          loadGlobal (user <#> _.token)
-      PersonalFeed u -> case currentTab of
+          loadGlobal urls (currentUser <#> _.token)
+      PersonalFeed u -> case selected of
         PersonalFeed _ -> pure unit
-        _ -> loadPersonal u
+        _ -> loadPersonal urls u
   Favorited article -> do
-    user <- H.gets _.currentUser
+    { currentUser, urls } <- H.get
     let
-      token = user <#> _.token
-    token # maybe (pure unit) \tok -> 
-      Utils.favorite article tok updateArticles _.articles
-
+      token = currentUser <#> _.token
+    token
+      # maybe (pure unit) \tok ->
+          Utils.favorite urls article tok updateArticles _.articles
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
   updateArticles v = _ { articles = v }
-  loadArticles token = load (API.getArticles token) updateArticles
 
-  loadGlobal token = load (API.getArticles token) (\v -> _ { articles = v, selected = GlobalFeed })
+  loadArticles urls token = load (API.getArticles urls token) updateArticles
 
-  loadTagged tag token = load (API.getTaggedArticles tag token) (\v -> _ { articles = v, selected = TagFeed tag })
+  loadGlobal urls token = load (API.getArticles urls token) (\v -> _ { articles = v, selected = GlobalFeed })
 
-  loadTags = load API.getTags (\v -> _ { tags = v })
+  loadTagged urls tag token = load (API.getTaggedArticles urls tag token) (\v -> _ { articles = v, selected = TagFeed tag })
 
-  loadPersonal user =
-    load (API.getFeed user.token)
+  loadTags urls = load (API.getTags urls) (\v -> _ { tags = v })
+
+  loadPersonal urls user =
+    load (API.getFeed urls user.token)
       ( \v ->
           _
             { articles = v

@@ -1,14 +1,13 @@
 module Pages.Authentication where
 
 import Prelude
-
 import API as API
-import API.Response (Error)
 import API.Response as R
 import Classes as C
 import Data.Array (snoc)
 import Data.Const (Const)
 import Data.Either (Either(..), either)
+import Data.GlobalState (WithUrls)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Traversable (sequence)
 import Data.User (User)
@@ -32,20 +31,26 @@ data Output
 type Slot
   = H.Slot Query Output
 
-data Input
+data AuthenticationAction
   = Login
   | Register
 
+type Input
+  = Record (WithUrls ( action :: AuthenticationAction ))
+
 type State
-  = { action :: Input
-    , errorMessages :: Maybe R.Error
-    , name :: Maybe String
-    , password :: Maybe String
-    , email :: Maybe String
-    }
+  = Record
+      ( WithUrls
+          ( action :: AuthenticationAction
+          , errorMessages :: Maybe R.Error
+          , name :: Maybe String
+          , password :: Maybe String
+          , email :: Maybe String
+          )
+      )
 
 data Action
-  = ActionChanged Input
+  = Receive Input
   | PostRequest
   | EmailChanged String
   | NameChanged String
@@ -64,13 +69,14 @@ component =
         H.mkEval
           $ H.defaultEval
               { handleAction = handleAction
-              , receive = Just <<< ActionChanged
+              , receive = Just <<< Receive
               }
     }
 
 initialState :: Input -> State
-initialState action =
+initialState { action, urls } =
   { action
+  , urls
   , errorMessages: Nothing
   , password: Nothing
   , email: Nothing
@@ -132,7 +138,8 @@ render state =
         content "Sign up" [ namefield, emailfield, passwordfield ]
           $ HH.a [ HP.href loginUrl ] [ HH.text "Have an account already?" ]
 
-type Context m r = H.HalogenM State Action ChildSlots Output m r
+type Context m r
+  = H.HalogenM State Action ChildSlots Output m r
 
 handleAction ∷
   forall m.
@@ -140,13 +147,13 @@ handleAction ∷
   Action ->
   Context m Unit
 handleAction = case _ of
-  ActionChanged action -> H.modify_ (_ { action = action })
+  Receive { action, urls } -> H.modify_ (_ { action = action, urls = urls })
   PostRequest -> do
     state <- H.get
     case state.action of
       Login -> case sequence [ state.email, state.password ] of
         Just [ email, password ] -> do
-          user <- login email password
+          user <- login state.urls email password
           user
             # either
                 (\v -> H.modify_ _ { errorMessages = Just v })
@@ -154,7 +161,7 @@ handleAction = case _ of
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
         Just [ username, email, password ] -> do
-          req <- H.liftAff $ API.request $ API.registration { user: { username, email, password }}
+          req <- H.liftAff $ API.request $ API.registration state.urls { user: { username, email, password } }
           case req of
             Left error -> H.modify_ _ { errorMessages = Just error }
             Right result -> loggedIn result.user
@@ -164,10 +171,9 @@ handleAction = case _ of
   PasswordChanged password -> H.modify_ _ { password = Just password, errorMessages = Nothing }
   PreventDefault event action -> Utils.preventDefault event action handleAction
   where
-  login :: String -> String -> Context m (Either Error User)
-  login email password = H.liftAff $ API.loginR { email, password }
+  login urls email password = H.liftAff $ API.loginR urls { email, password }
 
   loggedIn :: User -> Context m Unit
   loggedIn user = do
-    H.modify_ _{ errorMessages = Nothing }
+    H.modify_ _ { errorMessages = Nothing }
     H.raise $ LoginPerformed user

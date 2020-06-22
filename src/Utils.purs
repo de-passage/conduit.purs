@@ -1,9 +1,9 @@
 module Utils where
 
 import Prelude
-
 import API as API
 import API.Response (Error, fromError)
+import API.Url (UrlRepository)
 import Classes as C
 import Data.Article (Article)
 import Data.Either (Either(..))
@@ -48,11 +48,12 @@ unsafeLog = H.liftEffect <<< Console.log <<< Unsafe.unsafeCoerce
 follow ::
   forall a c o s m.
   MonadAff m =>
+  UrlRepository ->
   Profile ->
   Token ->
   (LoadState Profile -> s -> s) ->
   H.HalogenM s a c o m Unit
-follow profile token update = do
+follow urls profile token update = do
   request <-
     H.liftAff
       $ API.request
@@ -61,6 +62,7 @@ follow profile token update = do
               else
                 API.follow
             )
+              urls
               profile.username
               token
           )
@@ -72,12 +74,13 @@ favorite ::
   forall a c o s m f.
   MonadAff m =>
   Functor f =>
+  UrlRepository ->
   Article ->
   Token ->
   (LoadState (f Article) -> s -> s) ->
   (s -> LoadState (f Article)) ->
   H.HalogenM s a c o m Unit
-favorite article token update retrieve = do
+favorite urls article token update retrieve = do
   request <-
     H.liftAff
       $ API.request
@@ -86,6 +89,7 @@ favorite article token update retrieve = do
               else
                 API.favorite
             )
+              urls
               article.slug
               token
           )
@@ -112,44 +116,60 @@ errorDisplay errors =
             HH.li [ HP.classes [ C.errorMessages ] ] [ HH.text msg ]
     )
 
-
 followButtonC :: forall w i. Array H.ClassName -> (Profile -> MouseEvent -> Maybe w) -> Profile -> HH.HTML i w
 followButtonC cs action profile =
   HH.button
     [ HP.classes
-        ([ BS.btn
-        , if profile.following then BS.btnOutlineSecondary else BS.btnOutlinePrimary
-        , C.actionBtn
-        ] <> cs)
+        ( [ BS.btn
+          , if profile.following then BS.btnOutlineSecondary else BS.btnOutlinePrimary
+          , C.actionBtn
+          ]
+            <> cs
+        )
     , HE.onClick $ action profile
     ]
     [ HH.i [ HP.class_ C.ionPlusRound ] []
     , HH.text $ (if profile.following then " Unfollow " else " Follow ") <> unwrap profile.username
     ]
-    
+
 followButton :: forall w i. (Profile -> MouseEvent -> Maybe w) -> Profile -> HH.HTML i w
 followButton = followButtonC []
 
 hackyFormatDate :: String -> String
-hackyFormatDate date = 
-  let year = S.take 4 date
-      month = f $ S.take 2 $ S.drop 5 date 
-      day = d $ S.take 2 $ S.drop 8 date
+hackyFormatDate date =
+  let
+    year = S.take 4 date
 
-      f "01" = "January"
-      f "02" = "February"
-      f "03" = "March"
-      f "04" = "April"
-      f "05" = "May"
-      f "06" = "June"
-      f "07" = "July"
-      f "08" = "August"
-      f "09" = "September"
-      f "10" = "October"
-      f "11" = "November"
-      f "12" = "December"
-      f s = s
+    month = f $ S.take 2 $ S.drop 5 date
 
-      d s = S.dropWhile (_ == S.codePointFromChar '0') s <> "."
-  in 
-    month <> " " <>  day <> " " <> year
+    day = d $ S.take 2 $ S.drop 8 date
+
+    f "01" = "January"
+
+    f "02" = "February"
+
+    f "03" = "March"
+
+    f "04" = "April"
+
+    f "05" = "May"
+
+    f "06" = "June"
+
+    f "07" = "July"
+
+    f "08" = "August"
+
+    f "09" = "September"
+
+    f "10" = "October"
+
+    f "11" = "November"
+
+    f "12" = "December"
+
+    f s = s
+
+    d s = S.dropWhile (_ == S.codePointFromChar '0') s <> "."
+  in
+    month <> " " <> day <> " " <> year

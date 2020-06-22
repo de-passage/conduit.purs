@@ -14,10 +14,10 @@ module API
   ) where
 
 import Prelude
-
 import API.Endpoint (ArticleCreationPayload, ArticleEditionPayload, ArticleRequest, ArticlesRequest, CommentPayload, CommentRequest, CommentsRequest, LoginPayload, ProfileRequest, RegistrationPayload, SimpleRequest, TagsRequest, UserRequest, UserUpdatePayload, allArticles, article, articleCreation, articleDeletion, articleEdition, articles, commentCreation, commentDeletion, comments, currentUser, favorite, feed, follow, limitedFeed, login, profile, registration, tags, unfavorite, unfollow, updateUser) as E
 import API.Endpoint.Core (Request)
 import API.Response (Error(..), Response)
+import API.Url (UrlRepository)
 import API.Url as Url
 import API.Utils as Utils
 import Affjax (request, printError) as AJ
@@ -49,42 +49,45 @@ request r = do
             Right ok -> Right ok
           (AJ.StatusCode unknown) -> Left (APIError unknown)
 
-getArticle :: Slug -> Maybe Token -> Aff (Response Article)
-getArticle s t = (request $ E.article s t) <%> _.article
+getArticle :: UrlRepository -> Slug -> Maybe Token -> Aff (Response Article)
+getArticle url s t = (request $ E.article url s t) <%> _.article
 
-getArticles :: Maybe Token -> Aff (Response (Array Article))
-getArticles token = (request $ E.allArticles token) <%> _.articles
+getArticles :: UrlRepository -> Maybe Token -> Aff (Response (Array Article))
+getArticles url token = (request $ E.allArticles url token) <%> _.articles
 
-getUserArticles :: Username -> Maybe Token -> Aff (Response (Array Article))
-getUserArticles user token =
+getUserArticles :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
+getUserArticles url user token =
   ( request
-        $ E.articles (Url.defaultArticleOptions { author = Just user }) token
-    )
-     <%> _.articles
+      $ E.articles url (Url.defaultArticleOptions { author = Just user }) token
+  )
+    <%> _.articles
 
-getTaggedArticles :: Tag -> Maybe Token -> Aff (Response (Array Article))
-getTaggedArticles tag token =
-  (request
-    $ E.articles (Url.defaultArticleOptions { tag = Just tag }) token) <%> _.articles
+getTaggedArticles :: UrlRepository -> Tag -> Maybe Token -> Aff (Response (Array Article))
+getTaggedArticles url tag token =
+  ( request
+      $ E.articles url (Url.defaultArticleOptions { tag = Just tag }) token
+  )
+    <%> _.articles
 
-getFavorites :: Username -> Maybe Token -> Aff (Response (Array Article))
-getFavorites user token = (request $ E.articles (Url.defaultArticleOptions { favorited = Just user }) token) <%> _.articles
+getFavorites :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
+getFavorites url user token = (request $ E.articles url (Url.defaultArticleOptions { favorited = Just user }) token) <%> _.articles
 
-getProfile :: Username -> Maybe Token -> Aff (Response Profile)
-getProfile u token = (request $ E.profile u token) <%> _.profile
+getProfile :: UrlRepository -> Username -> Maybe Token -> Aff (Response Profile)
+getProfile url u token = (request $ E.profile url u token) <%> _.profile
 
-getTags :: Aff (Response (Array Tag))
-getTags = (request E.tags) <%> _.tags
+getTags :: UrlRepository -> Aff (Response (Array Tag))
+getTags url = (request $ E.tags url) <%> _.tags
 
-getComments :: Slug -> Maybe Token -> Aff (Response (Array Comment))
-getComments slug token = (request $ E.comments slug token) <%> _.comments
+getComments :: UrlRepository -> Slug -> Maybe Token -> Aff (Response (Array Comment))
+getComments url slug token = (request $ E.comments url slug token) <%> _.comments
 
-getFeed :: Token -> Aff (Response (Array Article))
-getFeed token = (request $ E.feed token) <%> _.articles
+getFeed :: UrlRepository -> Token -> Aff (Response (Array Article))
+getFeed url token = (request $ E.feed url token) <%> _.articles
 
-loginR :: { email :: String, password :: String } -> Aff (Response User)
-loginR user = (request $ E.login { user }) <%> _.user
+loginR :: UrlRepository -> { email :: String, password :: String } -> Aff (Response User)
+loginR url user = (request $ E.login url { user }) <%> _.user
 
 nmap :: forall f g a b. Functor f => Functor g => f (g a) -> (a -> b) -> f (g b)
 nmap = flip (map <<< map)
-infixl 2 nmap as <%> 
+
+infixl 2 nmap as <%>

@@ -1,34 +1,19 @@
 module API.Url
-  ( articles
-  , article
-  , allArticles
-  , defaultArticleOptions
+  ( defaultArticleOptions
   , defaultArticleLimit
-  , profile
-  , follow
-  , tags
-  , comments
-  , comment
-  , users
-  , currentUser
-  , feed
-  , limitedFeed
-  , login
-  , userArticles
-  , taggedArticles
-  , favorites
-  , favorite
-  , register
+  , repository
   , Url
   , ArticleOptions
   , ArticleLimit
   , Limit
+  , UrlRepository
   ) where
 
 import Data.Array (catMaybes, intercalate, length)
 import Data.Article (Slug)
 import Data.Comment (CommentId)
 import Data.Maybe (Maybe(..))
+import Data.Root (Root(..))
 import Data.Tag (Tag)
 import Data.User (Username)
 import Prelude (class Show, show, ($), (<#>), (<>), (>))
@@ -41,6 +26,11 @@ instance showUrl :: Show Url where
 
 class ShowUnquoted m where
   showUnquoted :: m -> String
+
+instance showUnquotedRoot :: ShowUnquoted Root where
+  showUnquoted PublicApi = "https://conduit.productionready.io/api/"
+  showUnquoted (LocalHost port) = "https://localhost:" <> show port <> "/api/"
+  showUnquoted (Custom url) = url
 
 instance showUnquotedUrl :: ShowUnquoted Url where
   showUnquoted = show
@@ -65,61 +55,137 @@ combine a b = Url $ showUnquoted a <> showUnquoted b
 
 infixl 4 combine as <.>
 
-root :: Url
-root = Url "https://conduit.productionready.io/api/"
+type UrlRepository
+  = { root :: Url
+    , article :: Slug -> Url
+    , articles :: ArticleOptions -> Url
+    , allArticles :: Url
+    , favorite :: Slug -> Url
+    , profile :: Username -> Url
+    , follow :: Username -> Url
+    , tags :: Url
+    , comments :: Slug -> Url
+    , comment :: Slug -> CommentId -> Url
+    , users :: Url
+    , currentUser :: Url
+    , feed :: Url
+    , limitedFeed :: ArticleLimit -> Url
+    , login :: Url
+    , userArticles :: Username -> Url
+    , taggedArticles :: Tag -> Url
+    , favorites :: Username -> Url
+    , register :: Url
+    }
 
-allArticles :: Url
-allArticles = root <.> "articles/"
-
-article :: Slug -> Url
-article s = allArticles <.> s <.> "/"
-
-favorite :: Slug -> Url
-favorite s = article s <.> "favorite/"
-
-profile :: Username -> Url
-profile u = root <.> "profiles/" <.> u <.> "/"
-
-follow :: Username -> Url
-follow u = profile u <.> "follow/"
-
-tags :: Url
-tags = root <.> "tags/"
-
-comments :: Slug -> Url
-comments slug = article slug <.> "comments/"
-
-comment :: Slug -> CommentId -> Url
-comment slug id = comments slug <.> id <.> "/"
-
-users :: Url
-users = root <.> "users/"
-
-currentUser :: Url
-currentUser = root <.> "user/"
-
-feed :: Url
-feed = allArticles <.> "feed/"
-
-limitedFeed :: ArticleLimit -> Url
-limitedFeed opts = 
-  if length prefixed > 0 then
-    feed <.> "?" <.> options
-  else
-    feed
+repository :: Root -> UrlRepository
+repository r =
+  { root
+  , article
+  , articles
+  , allArticles
+  , profile
+  , follow
+  , tags
+  , comments
+  , comment
+  , users
+  , currentUser
+  , feed
+  , limitedFeed
+  , login
+  , userArticles
+  , taggedArticles
+  , favorites
+  , favorite
+  , register
+  }
   where
-  options = intercalate "&" prefixed
+  root :: Url
+  root = Url $ showUnquoted r
 
-  prefixed = catMaybes
-    [ prefix "limit" opts.limit
-    , prefix "offset" opts.offset
-    ]
+  allArticles :: Url
+  allArticles = root <.> "articles/"
 
-login :: Url
-login = users <.> "login/"
+  article :: Slug -> Url
+  article s = allArticles <.> s <.> "/"
 
-register :: Url
-register = users
+  favorite :: Slug -> Url
+  favorite s = article s <.> "favorite/"
+
+  profile :: Username -> Url
+  profile u = root <.> "profiles/" <.> u <.> "/"
+
+  follow :: Username -> Url
+  follow u = profile u <.> "follow/"
+
+  tags :: Url
+  tags = root <.> "tags/"
+
+  comments :: Slug -> Url
+  comments slug = article slug <.> "comments/"
+
+  comment :: Slug -> CommentId -> Url
+  comment slug id = comments slug <.> id <.> "/"
+
+  users :: Url
+  users = root <.> "users/"
+
+  currentUser :: Url
+  currentUser = root <.> "user/"
+
+  feed :: Url
+  feed = allArticles <.> "feed/"
+
+  limitedFeed :: ArticleLimit -> Url
+  limitedFeed opts =
+    if length prefixed > 0 then
+      feed <.> "?" <.> options
+    else
+      feed
+    where
+    options = intercalate "&" prefixed
+
+    prefixed =
+      catMaybes
+        [ prefix "limit" opts.limit
+        , prefix "offset" opts.offset
+        ]
+
+  login :: Url
+  login = users <.> "login/"
+
+  register :: Url
+  register = users
+
+  articles :: ArticleOptions -> Url
+  articles opts =
+    if length prefixed > 0 then
+      allArticles <.> "?" <.> options
+    else
+      allArticles
+    where
+    options = intercalate "&" prefixed
+
+    prefixed =
+      catMaybes
+        [ prefix "author" opts.author
+        , prefix "tag" opts.tag
+        , prefix "favorited" opts.favorited
+        , prefix "limit" opts.limit
+        , prefix "offset" opts.offset
+        ]
+
+  prefix :: forall v. Show v => String -> Maybe v -> Maybe String
+  prefix name value = value <#> \v -> name <> "=" <> show v
+
+  userArticles :: Username -> Url
+  userArticles u = articles $ defaultArticleOptions { author = Just u }
+
+  taggedArticles :: Tag -> Url
+  taggedArticles t = articles $ defaultArticleOptions { tag = Just t }
+
+  favorites :: Username -> Url
+  favorites u = articles $ defaultArticleOptions { favorited = Just u }
 
 type Limit
   = ( limit :: Maybe Int, offset :: Maybe Int )
@@ -148,32 +214,3 @@ defaultArticleLimit =
   { limit: Nothing
   , offset: Nothing
   }
-
-articles :: ArticleOptions -> Url
-articles opts = 
-  if length prefixed > 0 then
-    allArticles <.> "?" <.> options
-  else
-    allArticles
-  where
-  options = intercalate "&" prefixed
-
-  prefixed = catMaybes
-    [ prefix "author" opts.author
-    , prefix "tag" opts.tag
-    , prefix "favorited" opts.favorited
-    , prefix "limit" opts.limit
-    , prefix "offset" opts.offset
-    ]
-
-prefix :: forall v. Show v => String -> Maybe v -> Maybe String
-prefix name value = value <#> \v -> name <> "=" <> show v
-
-userArticles :: Username -> Url
-userArticles u = articles $ defaultArticleOptions { author = Just u }
-
-taggedArticles :: Tag -> Url
-taggedArticles t = articles $ defaultArticleOptions { tag = Just t }
-
-favorites :: Username -> Url
-favorites u = articles $ defaultArticleOptions { favorited = Just u }

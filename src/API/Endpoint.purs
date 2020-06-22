@@ -1,12 +1,10 @@
 module API.Endpoint where
 
 --import Prelude
-
 import API.Endpoint.Core as C
 import API.Endpoint.Descriptions as D
 import API.Response as R
-import API.Url (ArticleOptions, ArticleLimit)
-import API.Url as Url
+import API.Url (ArticleLimit, ArticleOptions, UrlRepository)
 import Data.Article (Slug)
 import Data.Comment (CommentId)
 import Data.HTTP.Method (Method(..))
@@ -15,81 +13,107 @@ import Data.Token as T
 import Data.User (Username)
 import Prelude (Unit)
 
-type LoginPayload = Record D.LoginPayload
-type RegistrationPayload = Record D.RegistrationPayload
-type UserUpdatePayload = Record D.UserUpdatePayload
-type ArticleCreationPayload = Record D.ArticleCreationPayload
-type ArticleEditionPayload = Record D.ArticleEditionPayload
-type CommentPayload = Record D.CommentPayload
+type LoginPayload
+  = Record D.LoginPayload
 
-type UserRequest = C.Request R.UserResponse
-type ProfileRequest = C.Request R.ProfileResponse 
-type TagsRequest = C.Request R.TagsResponse
-type ArticleRequest = C.Request R.ArticleResponse
-type ArticlesRequest = C.Request R.ArticlesResponse
-type CommentRequest = C.Request R.CommentResponse
-type CommentsRequest = C.Request R.CommentsResponse
-type SimpleRequest = C.Request Unit
+type RegistrationPayload
+  = Record D.RegistrationPayload
 
-login :: LoginPayload -> UserRequest
-login = C.create D.login Url.login POST
+type UserUpdatePayload
+  = Record D.UserUpdatePayload
 
-registration :: RegistrationPayload -> UserRequest
-registration = C.create D.register Url.register POST
+type ArticleCreationPayload
+  = Record D.ArticleCreationPayload
 
-currentUser :: T.Token -> UserRequest
-currentUser = C.create_ D.currentUser Url.currentUser GET
+type ArticleEditionPayload
+  = Record D.ArticleEditionPayload
 
-updateUser :: UserUpdatePayload -> T.Token -> UserRequest
-updateUser = C.create D.updateUser Url.currentUser PUT
+type CommentPayload
+  = Record D.CommentPayload
 
-profile :: Username -> Maybe T.Token -> ProfileRequest
-profile user = C.create_ D.profile (Url.profile user) GET
+type UserRequest
+  = C.Request R.UserResponse
 
-follow :: Username -> T.Token -> ProfileRequest
-follow user = C.create_ D.follow (Url.follow user) POST
+type ProfileRequest
+  = C.Request R.ProfileResponse
 
-unfollow :: Username -> T.Token -> ProfileRequest
-unfollow user = C.create_ D.follow (Url.follow user) DELETE
+type TagsRequest
+  = C.Request R.TagsResponse
 
-articles :: ArticleOptions -> Maybe T.Token -> ArticlesRequest
-articles options = C.create_ D.articles (Url.articles options) GET
+type ArticleRequest
+  = C.Request R.ArticleResponse
 
-allArticles :: Maybe T.Token -> ArticlesRequest
-allArticles = C.create_ D.articles Url.allArticles GET
+type ArticlesRequest
+  = C.Request R.ArticlesResponse
 
-limitedFeed :: ArticleLimit -> T.Token -> ArticlesRequest
-limitedFeed options = C.create_ D.feed (Url.limitedFeed options) GET
+type CommentRequest
+  = C.Request R.CommentResponse
 
-feed :: T.Token -> ArticlesRequest
-feed = C.create_ D.feed Url.feed GET
+type CommentsRequest
+  = C.Request R.CommentsResponse
 
-article :: Slug -> Maybe T.Token -> ArticleRequest
-article s = C.create_ D.article (Url.article s) GET
+type SimpleRequest
+  = C.Request Unit
 
-articleCreation :: ArticleCreationPayload -> T.Token -> ArticleRequest
-articleCreation = C.create D.createArticle Url.allArticles POST
+login :: UrlRepository -> LoginPayload -> UserRequest
+login url = C.create D.login url.login POST
 
-articleEdition :: Slug -> ArticleEditionPayload -> T.Token -> ArticleRequest
-articleEdition slug = C.create D.editArticle (Url.article slug) PUT
+registration :: UrlRepository -> RegistrationPayload -> UserRequest
+registration url = C.create D.register url.register POST
 
-articleDeletion :: Slug -> T.Token -> SimpleRequest
-articleDeletion slug = C.create_ D.deleteArticle (Url.article slug) DELETE
+currentUser :: UrlRepository -> T.Token -> UserRequest
+currentUser url = C.create_ D.currentUser url.currentUser GET
 
-commentCreation :: Slug -> CommentPayload -> T.Token -> CommentRequest
-commentCreation slug = C.create D.comment (Url.comments slug) POST
+updateUser :: UrlRepository -> UserUpdatePayload -> T.Token -> UserRequest
+updateUser url = C.create D.updateUser url.currentUser PUT
 
-comments :: Slug -> Maybe T.Token -> CommentsRequest
-comments slug = C.create_ D.comments (Url.comments slug) GET
+profile :: UrlRepository -> Username -> Maybe T.Token -> ProfileRequest
+profile url user = C.create_ D.profile (url.profile user) GET
 
-commentDeletion :: Slug -> CommentId -> T.Token -> SimpleRequest
-commentDeletion slug id = C.create_ D.deleteComment (Url.comment slug id) DELETE
+follow :: UrlRepository -> Username -> T.Token -> ProfileRequest
+follow url user = C.create_ D.follow (url.follow user) POST
 
-favorite :: Slug -> T.Token -> ArticleRequest
-favorite slug = C.create_ D.favorite (Url.favorite slug) POST
+unfollow :: UrlRepository -> Username -> T.Token -> ProfileRequest
+unfollow url user = C.create_ D.follow (url.follow user) DELETE
 
-unfavorite :: Slug -> T.Token -> ArticleRequest
-unfavorite slug = C.create_ D.favorite (Url.favorite slug) DELETE
+articles :: UrlRepository -> ArticleOptions -> Maybe T.Token -> ArticlesRequest
+articles url options = C.create_ D.articles (url.articles options) GET
 
-tags :: TagsRequest
-tags = C.create_ D.tags Url.tags GET
+allArticles :: UrlRepository -> Maybe T.Token -> ArticlesRequest
+allArticles url = C.create_ D.articles url.allArticles GET
+
+limitedFeed :: UrlRepository -> ArticleLimit -> T.Token -> ArticlesRequest
+limitedFeed url options = C.create_ D.feed (url.limitedFeed options) GET
+
+feed :: UrlRepository -> T.Token -> ArticlesRequest
+feed url = C.create_ D.feed url.feed GET
+
+article :: UrlRepository -> Slug -> Maybe T.Token -> ArticleRequest
+article url s = C.create_ D.article (url.article s) GET
+
+articleCreation :: UrlRepository -> ArticleCreationPayload -> T.Token -> ArticleRequest
+articleCreation url = C.create D.createArticle url.allArticles POST
+
+articleEdition :: UrlRepository -> Slug -> ArticleEditionPayload -> T.Token -> ArticleRequest
+articleEdition url slug = C.create D.editArticle (url.article slug) PUT
+
+articleDeletion :: UrlRepository -> Slug -> T.Token -> SimpleRequest
+articleDeletion url slug = C.create_ D.deleteArticle (url.article slug) DELETE
+
+commentCreation :: UrlRepository -> Slug -> CommentPayload -> T.Token -> CommentRequest
+commentCreation url slug = C.create D.comment (url.comments slug) POST
+
+comments :: UrlRepository -> Slug -> Maybe T.Token -> CommentsRequest
+comments url slug = C.create_ D.comments (url.comments slug) GET
+
+commentDeletion :: UrlRepository -> Slug -> CommentId -> T.Token -> SimpleRequest
+commentDeletion url slug id = C.create_ D.deleteComment (url.comment slug id) DELETE
+
+favorite :: UrlRepository -> Slug -> T.Token -> ArticleRequest
+favorite url slug = C.create_ D.favorite (url.favorite slug) POST
+
+unfavorite :: UrlRepository -> Slug -> T.Token -> ArticleRequest
+unfavorite url slug = C.create_ D.favorite (url.favorite slug) DELETE
+
+tags :: UrlRepository -> TagsRequest
+tags url = C.create_ D.tags url.tags GET

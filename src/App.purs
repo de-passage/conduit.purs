@@ -1,12 +1,13 @@
 module App where
 
 import Prelude
-
+import API.Url as Urls
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
+import Data.Root (Root(..))
 import Data.Symbol (SProxy(..))
-import Data.User (User, deleteStoredUser, storeUser)
+import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Halogen as H
@@ -18,6 +19,7 @@ import Pages.Home as Pages.Home
 import Pages.Profile as Pages.Profile
 import Pages.Settings as Pages.Settings
 import Router (Route(..), homeUrl, profileUrl, redirect, route, routeWith404, showArticleUrl)
+import Storage as S
 import Templates.Footer as Footer
 import Templates.Navbar as Navbar
 import Utils as Utils
@@ -84,7 +86,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState { url, user } = { currentRoute: initialRoute, currentUser: user }
+initialState { url, user } = { currentRoute: initialRoute, currentUser: user, urls: Urls.repository PublicApi }
   where
   initialRoute :: Route
   initialRoute =
@@ -102,59 +104,73 @@ render state =
     ]
 
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
-showPage r s = case r of
+showPage r s@{ urls, currentUser, currentRoute } = case r of
   Home -> home
-  Login -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Login handleAuthenticationMessages
-  Register -> HH.slot _authentication unit Pages.Authentication.component Pages.Authentication.Register handleAuthenticationMessages
+  Login ->
+    HH.slot _authentication unit Pages.Authentication.component
+      { urls, action: Pages.Authentication.Login }
+      handleAuthenticationMessages
+  Register ->
+    HH.slot _authentication unit Pages.Authentication.component
+      { urls, action: Pages.Authentication.Register }
+      handleAuthenticationMessages
   Settings -> authenticated settings home
   NewArticle -> authenticated newArticle home
   EditArticle slug -> authenticated (editArticle slug) home
-  ShowArticle slug -> HH.slot _showArticle unit Pages.Article.component { slug, currentUser: s.currentUser } handleArticleMessages
+  ShowArticle slug ->
+    HH.slot _showArticle unit Pages.Article.component
+      { slug, currentUser, urls }
+      handleArticleMessages
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Authored username)
-      , currentUser: s.currentUser
+      , currentUser
+      , urls
       }
       absurd
   Favorites username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Favorited username)
-      , currentUser: s.currentUser
+      , currentUser
+      , urls
       }
       absurd
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
   where
-  authenticated a b = case s.currentUser of
+  authenticated a b = case currentUser of
     Just user -> a user
     Nothing -> b
 
-  settings user = HH.slot _settings unit Pages.Settings.component user handleSettingsMessages
+  settings user =
+    HH.slot _settings unit Pages.Settings.component
+      { currentUser: user, urls }
+      handleSettingsMessages
 
-  home = HH.slot _homePage unit Pages.Home.component s absurd
+  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser } absurd
 
-  newArticle currentUser =
+  newArticle user =
     HH.slot _newArticle
       unit
       Pages.Edition.component
-      { currentAction: Pages.Edition.New, currentUser }
+      { currentAction: Pages.Edition.New, currentUser: user, urls }
       handleEditionMessages
 
-  editArticle slug currentUser =
+  editArticle slug user =
     HH.slot
       _editArticle
       unit
       Pages.Edition.component
-      { currentAction: Pages.Edition.Edit slug, currentUser }
+      { currentAction: Pages.Edition.Edit slug, currentUser: user, urls }
       handleEditionMessages
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
 handleAction = case _ of
   LogOut -> do
-    H.liftEffect deleteStoredUser
+    H.liftEffect S.deleteStoredUser
     H.modify_ (_ { currentUser = Nothing })
     handleAction $ Redirect homeUrl
   LogIn user -> do
-    H.liftEffect $ storeUser user
+    H.liftEffect $ S.storeUser user
     H.modify_ (_ { currentUser = Just user })
     handleAction $ Redirect homeUrl
   UpdateUser user -> do

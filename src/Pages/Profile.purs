@@ -6,9 +6,10 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article)
 import Data.Const (Const)
+import Data.GlobalState (WithCommon)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
-import Data.User (Profile, Username, User, fromImage)
+import Data.User (Profile, Username, fromImage)
 import Effect.Aff.Class (class MonadAff)
 import Halogen as H
 import Halogen.HTML as HH
@@ -32,9 +33,11 @@ data SubPage
   | Favorited Username
 
 type Input
-  = { page :: SubPage
-    , currentUser :: Maybe User
-    }
+  = Record
+      ( WithCommon
+          ( page :: SubPage
+          )
+      )
 
 extract :: SubPage -> Username
 extract (Authored u) = u
@@ -50,11 +53,13 @@ type Slot
   = H.Slot Query Output
 
 type State
-  = { profile :: LoadState Profile
-    , page :: SubPage
-    , articles :: LoadState (Array Article)
-    , currentUser :: Maybe User
-    }
+  = Record
+      ( WithCommon
+          ( profile :: LoadState Profile
+          , page :: SubPage
+          , articles :: LoadState (Array Article)
+          )
+      )
 
 data Action
   = Init
@@ -81,11 +86,12 @@ component =
     }
 
 initialState :: Input -> State
-initialState { page, currentUser } =
+initialState { page, currentUser, urls } =
   { profile: Loading
   , page
   , articles: Loading
-  , currentUser: currentUser
+  , currentUser
+  , urls
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -111,11 +117,12 @@ render state =
                           , HH.p_ [ HH.text $ fromMaybe "" profile.bio ]
                           , ( state.currentUser
                                 # maybe (const $ HH.div_ [])
-                                    (\u -> 
-                                      if u.username == profile.username then 
-                                        const $ HH.div_ []
-                                      else 
-                                        Utils.followButton (preventDefault <<< FollowButtonClicked))
+                                    ( \u ->
+                                        if u.username == profile.username then
+                                          const $ HH.div_ []
+                                        else
+                                          Utils.followButton (preventDefault <<< FollowButtonClicked)
+                                    )
                             )
                               $ profile
                           ]
@@ -158,30 +165,30 @@ handleAction ∷
 handleAction = case _ of
   Init -> do
     state <- H.get
-    handleAction (Receive { page: state.page, currentUser: state.currentUser })
-  Receive { page, currentUser } -> do
+    handleAction (Receive { page: state.page, currentUser: state.currentUser, urls: state.urls })
+  Receive { page, currentUser, urls } -> do
     let
       token = currentUser <#> _.token
-    parSequence_ [ loadProfile page token, loadArticles page token ]
-    H.modify_ (_ { page = page })
+    parSequence_ [ loadProfile urls page token, loadArticles urls page token ]
+    H.modify_ (_ { page = page, currentUser = currentUser, urls = urls })
   FavoritedButtonClicked article -> do
-    user <- H.gets _.currentUser
+    { currentUser, urls } <- H.get
     let
-      token = user <#> _.token
+      token = currentUser <#> _.token
     token
       # maybe (pure unit) \tok ->
-          Utils.favorite article tok (\art -> _ { articles = art }) _.articles
+          Utils.favorite urls article tok (\art -> _ { articles = art }) _.articles
   FollowButtonClicked profile -> do
-    muser <- H.gets _.currentUser
-    muser
+    { currentUser, urls } <- H.get
+    currentUser
       # maybe (pure unit) \user ->
-          Utils.follow profile user.token (\prof -> _ { profile = prof })
+          Utils.follow urls profile user.token (\prof -> _ { profile = prof })
   PreventDefault event action -> Utils.preventDefault event action handleAction
   where
   setArticles c u v s = s { articles = v, page = c u }
 
-  loadProfile username token = load (API.getProfile (extract username) token) (\v -> _ { profile = v })
+  loadProfile urls username token = load (API.getProfile urls (extract username) token) (\v -> _ { profile = v })
 
-  loadArticles (Authored username) token = load (API.getUserArticles username token) $ setArticles Authored username
+  loadArticles urls (Authored username) token = load (API.getUserArticles urls username token) $ setArticles Authored username
 
-  loadArticles (Favorited username) token = load (API.getFavorites username token) $ setArticles Favorited username
+  loadArticles urls (Favorited username) token = load (API.getFavorites urls username token) $ setArticles Favorited username

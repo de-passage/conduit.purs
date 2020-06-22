@@ -10,6 +10,7 @@ import Data.Article (Article, Slug)
 import Data.Comment (Comment, CommentId)
 import Data.Const (Const)
 import Data.Either (Either(..))
+import Data.GlobalState (WithCommon)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
@@ -36,18 +37,20 @@ data Output
   = Redirect String
 
 type Input
-  = { slug :: Slug, currentUser :: Maybe User }
+  = Record (WithCommon ( slug :: Slug ))
 
 type Slot
   = H.Slot Query Output
 
 type State
-  = { article :: LoadState Article
-    , comments :: LoadState (Array Comment)
-    , slug :: Slug
-    , currentUser :: Maybe User
-    , comment :: String
-    }
+  = Record
+      ( WithCommon
+          ( article :: LoadState Article
+          , comments :: LoadState (Array Comment)
+          , slug :: Slug
+          , comment :: String
+          )
+      )
 
 data Action
   = Init
@@ -81,7 +84,7 @@ component =
     }
 
 initialState :: Input -> State
-initialState { slug, currentUser } = { article: Loading, comments: Loading, slug, currentUser, comment: "" }
+initialState { slug, currentUser, urls } = { urls, article: Loading, comments: Loading, slug, currentUser, comment: "" }
 
 render :: forall m. MonadEffect m => State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
@@ -121,17 +124,18 @@ handleAction ∷
 handleAction = case _ of
   Init -> do
     state <- H.get
-    handleAction (Receive { slug: state.slug, currentUser: state.currentUser })
-  Receive { slug, currentUser } -> do
-    H.modify_ _ { slug = slug, currentUser = currentUser }
+    handleAction (Receive { slug: state.slug, currentUser: state.currentUser, urls: state.urls })
+  Receive { slug, currentUser, urls } -> do
+    H.modify_ _ { slug = slug, currentUser = currentUser, urls = urls }
     let
       token = currentUser <#> _.token
-    parSequence_ [ loadArticle slug token, loadComments slug token ]
+    parSequence_ [ loadArticle urls slug token, loadComments urls slug token ]
   FavoriteButtonClicked article -> do
     state <- H.get
     state.currentUser
       # maybe (H.raise (Redirect loginUrl)) \u ->
           Utils.favorite
+            state.urls
             article
             u.token
             (map extract >>> setArticle)
@@ -140,37 +144,38 @@ handleAction = case _ of
     state <- H.get
     state.currentUser
       # maybe (H.raise (Redirect loginUrl)) \{ token } ->
-          Utils.follow profile token \v s -> case v of
+          Utils.follow state.urls profile token \v s -> case v of
             Loaded a -> s { article = s.article <#> (_ { author = a }) }
             _ -> s
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   EditArticle article -> H.raise $ Redirect $ editArticleUrl article.slug
   DeleteArticle { slug } -> do
-    user <- H.gets _.currentUser
-    user
+    { currentUser, urls } <- H.get
+    currentUser
       # maybe (H.raise $ Redirect loginUrl) \{ token } -> do
-          _ <- H.liftAff $ API.request $ API.articleDeletion slug token
+          _ <- H.liftAff $ API.request $ API.articleDeletion urls slug token
           H.raise $ Redirect homeUrl
   ChangeComment comment -> H.modify_ _ { comment = comment }
   PublishComment { token } { slug } -> do
-    body <- H.gets _.comment
-    if body /= "" then do
-      req <- H.liftAff $ API.request $ API.commentCreation slug { comment: { body } } token
+    { comment, urls } <- H.get
+    if comment /= "" then do
+      req <- H.liftAff $ API.request $ API.commentCreation urls slug { comment: { body: comment } } token
       case req of
         Left err -> pure unit
-        Right comment -> do
+        Right _ -> do
           H.modify_ _ { comment = "" }
-          loadComments slug $ Just token
+          loadComments urls slug $ Just token
     else
       pure unit
   DeleteComment id { slug } { token } -> do
-    void $ H.liftAff $ API.request $ API.commentDeletion slug id token
-    loadComments slug $ Just token
+    urls <- H.gets _.urls
+    void $ H.liftAff $ API.request $ API.commentDeletion urls slug id token
+    loadComments urls slug $ Just token
   where
-  loadArticle slug token = load (API.getArticle slug token) setArticle
+  loadArticle url slug token = load (API.getArticle url slug token) setArticle
 
-  loadComments slug token = load (API.getComments slug token) (\v -> _ { comments = v })
+  loadComments url slug token = load (API.getComments url slug token) (\v -> _ { comments = v })
 
   setArticle v = _ { article = v }
 
