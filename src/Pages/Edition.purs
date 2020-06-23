@@ -6,6 +6,7 @@ import API.Response (Error)
 import Classes as C
 import Data.Array (filter, nub, snoc)
 import Data.Article (Slug)
+import Data.ButtonStatus (ButtonStatus(..), disabled)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.GlobalState (WithUrls)
@@ -47,6 +48,7 @@ type State
               }
           , currentTag :: String
           , errorMessages :: Maybe Error
+          , buttonStatus :: ButtonStatus
           )
       )
 
@@ -102,6 +104,7 @@ initialState { currentUser, currentAction, urls } =
   , currentTag: ""
   , errorMessages: Nothing
   , urls
+  , buttonStatus: Active
   }
 
 render :: forall m. MonadAff m => State -> HH.ComponentHTML Action ChildSlots m
@@ -152,6 +155,7 @@ render state =
                         , HH.button
                             [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
                             , HE.onClick $ preventDefault Publish
+                            , disabled state.buttonStatus
                             ]
                             [ HH.text "Publish Article"
                             ]
@@ -206,6 +210,7 @@ handleAction = case _ of
   AddTag -> H.modify_ \s -> s { article { tagList = add s.currentTag s.article.tagList }, currentTag = "" }
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
+    H.modify_ _ { errorMessages = Nothing, buttonStatus = Inactive }
     { currentUser, article, currentAction, urls } <- H.get
     body <- H.query _textEditor unit (H.request SimpleMDE.GetContent)
     let
@@ -217,7 +222,6 @@ handleAction = case _ of
             , tagList: article.tagList
             }
         }
-    H.modify_ _ { errorMessages = Nothing }
     case currentAction of
       Edit slug -> request $ API.articleEdition urls slug nart currentUser.token
       New -> request $ API.articleCreation urls nart currentUser.token
@@ -228,6 +232,7 @@ handleAction = case _ of
 
   request r = do
     req <- liftAff $ API.request r
+    H.modify_ _ { buttonStatus = Active }
     case req of
       Left err -> H.modify_ _ { errorMessages = Just err }
       Right art -> H.raise (Redirect art.article.slug)
