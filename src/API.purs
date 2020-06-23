@@ -41,12 +41,13 @@ request r = do
         Left err -> Left $ AjaxFailed $ AJ.printError err
         Right { body, status } -> case status of
           (AJ.StatusCode 404) -> Left NotFound
-          (AJ.StatusCode 422) -> Left (ValidationFailed $ Utils.parseValidationErrors body)
+          (AJ.StatusCode 422) -> Left (ValidationFailed $ Utils.parseAPIErrors body)
           (AJ.StatusCode 401) -> Left Unauthorized
           (AJ.StatusCode 403) -> Left Forbidden
           (AJ.StatusCode 200) -> case A.decodeJson body of
             Left err -> Left $ ParseError err
             Right ok -> Right ok
+          (AJ.StatusCode 500) -> Left (InternalServerError $ Utils.parseAPIErrors body)
           (AJ.StatusCode unknown) -> Left (APIError unknown)
 
 getArticle :: UrlRepository -> Slug -> Maybe Token -> Aff (Response Article)

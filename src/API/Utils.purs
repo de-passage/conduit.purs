@@ -12,8 +12,8 @@ import Foreign.Object as F
 type ErrorContainer
   = { errors :: A.Json }
 
-parseValidationErrors :: A.Json -> Array R.ValidationError
-parseValidationErrors json =
+parseAPIErrors :: A.Json -> Array R.ValidationError
+parseAPIErrors json =
   (A.decodeJson json :: Either String ErrorContainer)
     # ( either
           (\s -> [ { name: "API", errors: [ "Unexpected error format received (" <> s <> "). Content: " <> A.stringify json ] } ])
@@ -23,7 +23,7 @@ parseValidationErrors json =
                 (\boolean -> [ { name: show boolean, errors: [] } ])
                 (\number -> [ { name: show number, errors: [] } ])
                 (\str -> [ { name: str, errors: [] } ])
-                (\array -> concatMap parseValidationErrors array)
+                (\array -> concatMap parseAPIErrors array)
                 (\object -> F.toUnfoldable object # map (\(n /\ o) -> { name: n, errors: parseObject o }))
                 j.errors
       )
