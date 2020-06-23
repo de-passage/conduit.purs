@@ -48,8 +48,14 @@ type UserResponse
 
 user = Proxy :: Proxy UserResponse
 
-type ValidationError
+type StandardError
   = { name :: String, errors :: Array String }
+
+type ValidationError
+  = StandardError
+
+type InternalError
+  = StandardError
 
 data Error
   = ValidationFailed (Array ValidationError)
@@ -59,12 +65,15 @@ data Error
   | AjaxFailed String
   | ParseError String
   | APIError Int
+  | InternalServerError (Array InternalError)
 
 type Response a
   = Either Error a
 
 fromError :: Error -> Array String
 fromError (ValidationFailed arr) = map (\{ name, errors } -> name <> " " <> intercalate " or " errors) arr
+
+fromError (InternalServerError arr) = map (\{ name, errors } -> name <> " " <> intercalate " or " errors) arr
 
 fromError Unauthorized = [ "401 Unauthorized: You need to authenticate to access this resource." ]
 
