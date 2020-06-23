@@ -7,6 +7,7 @@ import Control.Comonad (extract)
 import Control.Parallel (parSequence_)
 import Data.Array (cons)
 import Data.Article (Article, Slug)
+import Data.ButtonStatus (ButtonStatus(..), disabled)
 import Data.Comment (Comment, CommentId)
 import Data.Const (Const)
 import Data.Either (Either(..))
@@ -49,6 +50,7 @@ type State
           , comments :: LoadState (Array Comment)
           , slug :: Slug
           , comment :: String
+          , commentButtonStatus :: ButtonStatus
           )
       )
 
@@ -84,7 +86,15 @@ component =
     }
 
 initialState :: Input -> State
-initialState { slug, currentUser, urls } = { urls, article: Loading, comments: Loading, slug, currentUser, comment: "" }
+initialState { slug, currentUser, urls } =
+  { urls
+  , article: Loading
+  , comments: Loading
+  , slug
+  , currentUser
+  , comment: ""
+  , commentButtonStatus: Active
+  }
 
 render :: forall m. MonadEffect m => State -> HH.ComponentHTML Action ChildSlots m
 render state = case state.article of
@@ -110,7 +120,7 @@ render state = case state.article of
               ]
           , HH.div [ HP.class_ BS.row ]
               [ HH.div [ HP.classes [ C.colXs12, BS.colMd8, BS.offsetMd2 ] ]
-                  ( comments state.comment article state.currentUser state.comments
+                  ( comments state.comment article state.currentUser state.commentButtonStatus state.comments
                   )
               ]
           ]
@@ -160,11 +170,12 @@ handleAction = case _ of
   PublishComment { token } { slug } -> do
     { comment, urls } <- H.get
     if comment /= "" then do
+      H.modify_ _ { commentButtonStatus = Inactive }
       req <- H.liftAff $ API.request $ API.commentCreation urls slug { comment: { body: comment } } token
       case req of
-        Left err -> pure unit
+        Left err -> H.modify_ _ { commentButtonStatus = Active }
         Right _ -> do
-          H.modify_ _ { comment = "" }
+          H.modify_ _ { comment = "", commentButtonStatus = Active }
           loadComments urls slug $ Just token
     else
       pure unit
@@ -250,8 +261,8 @@ articleMeta user article =
 preventDefault :: Action -> MouseEvent -> Maybe Action
 preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
 
-comments :: forall w. String -> Article -> Maybe User -> LoadState (Array Comment) -> Array (HH.HTML w Action)
-comments currentComment article user = case _ of
+comments :: forall w. String -> Article -> Maybe User -> ButtonStatus -> LoadState (Array Comment) -> Array (HH.HTML w Action)
+comments currentComment article user btn = case _ of
   Loading -> [ HH.div_ [ HH.text "Loading comments" ] ]
   LoadError err -> [ HH.div [ HP.class_ BS.alertDanger ] [ Utils.errorDisplay err ] ]
   Loaded cs ->
@@ -305,6 +316,7 @@ comments currentComment article user = case _ of
               , HH.button
                   [ HP.classes [ BS.btn, BS.btnSm, BS.btnPrimary ]
                   , HE.onClick $ preventDefault $ PublishComment u article
+                  , disabled btn
                   ]
                   [ HH.text "Post Comment"
                   ]

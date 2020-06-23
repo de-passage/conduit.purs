@@ -5,6 +5,7 @@ import API as API
 import API.Response as R
 import Classes as C
 import Data.Array (snoc)
+import Data.ButtonStatus (ButtonStatus(..), disabled)
 import Data.Const (Const)
 import Data.Either (Either(..), either)
 import Data.GlobalState (WithUrls)
@@ -20,7 +21,7 @@ import Halogen.Themes.Bootstrap4 as BS
 import Router (loginUrl, registerUrl)
 import Utils as Utils
 import Web.Event.Event (Event)
-import Web.UIEvent.MouseEvent (toEvent)
+import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 
 type Query
   = Const Void
@@ -46,6 +47,7 @@ type State
           , name :: Maybe String
           , password :: Maybe String
           , email :: Maybe String
+          , buttonStatus :: ButtonStatus
           )
       )
 
@@ -81,6 +83,7 @@ initialState { action, urls } =
   , password: Nothing
   , email: Nothing
   , name: Nothing
+  , buttonStatus: Active
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -107,7 +110,8 @@ render state =
     button text =
       HH.button
         [ HP.classes [ BS.btn, BS.btnLg, BS.btnPrimary, C.pullXsRight ]
-        , HE.onClick (\e -> Just $ PreventDefault (toEvent e) $ Just PostRequest)
+        , HE.onClick $ preventDefault PostRequest
+        , disabled state.buttonStatus
         ]
         [ HH.text text
         ]
@@ -149,6 +153,7 @@ handleAction ∷
 handleAction = case _ of
   Receive { action, urls } -> H.modify_ (_ { action = action, urls = urls })
   PostRequest -> do
+    H.modify_ _ { buttonStatus = Inactive }
     state <- H.get
     case state.action of
       Login -> case sequence [ state.email, state.password ] of
@@ -156,14 +161,14 @@ handleAction = case _ of
           user <- login state.urls email password
           user
             # either
-                (\v -> H.modify_ _ { errorMessages = Just v })
+                (\v -> H.modify_ _ { errorMessages = Just v, buttonStatus = Active })
                 loggedIn
         _ -> pure unit
       Register -> case sequence [ state.name, state.email, state.password ] of
         Just [ username, email, password ] -> do
           req <- H.liftAff $ API.request $ API.registration state.urls { user: { username, email, password } }
           case req of
-            Left error -> H.modify_ _ { errorMessages = Just error }
+            Left error -> H.modify_ _ { errorMessages = Just error, buttonStatus = Active }
             Right result -> loggedIn result.user
         _ -> pure unit
   NameChanged name -> H.modify_ _ { name = Just name, errorMessages = Nothing }
@@ -175,5 +180,8 @@ handleAction = case _ of
 
   loggedIn :: User -> Context m Unit
   loggedIn user = do
-    H.modify_ _ { errorMessages = Nothing }
+    H.modify_ _ { errorMessages = Nothing, buttonStatus = Active }
     H.raise $ LoginPerformed user
+
+preventDefault :: Action -> MouseEvent -> Maybe Action
+preventDefault action e = Just $ PreventDefault (toEvent e) $ Just action
