@@ -3,16 +3,14 @@ module Pages.Article where
 import Prelude
 import API as API
 import Classes as C
-import Control.Comonad (extract)
 import Control.Parallel (parSequence_)
 import Data.Array (cons)
-import Data.Article (Article, Slug)
+import Data.Article (Article, ArticleIdentity(..), Slug)
 import Data.ButtonStatus (ButtonStatus(..), disabled)
 import Data.Comment (Comment, CommentId)
 import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.GlobalState (WithCommon)
-import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Symbol (SProxy(..))
@@ -148,8 +146,8 @@ handleAction = case _ of
             state.urls
             article
             u.token
-            (map extract >>> setArticle)
-            (_.article >>> map Identity)
+            (map unwrap >>> setArticle)
+            (_.article >>> map ArticleIdentity)
   FollowButtonClicked profile -> do
     state <- H.get
     state.currentUser

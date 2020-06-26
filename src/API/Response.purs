@@ -22,8 +22,7 @@ type ArticleResponse
 article = Proxy :: Proxy ArticleResponse
 
 type ArticlesResponse
-  = { articles :: Array Article
-    }
+  = { articles :: Array Article, articlesCount :: Int }
 
 articles = Proxy :: Proxy ArticlesResponse
 

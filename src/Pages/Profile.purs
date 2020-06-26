@@ -4,7 +4,7 @@ import Prelude
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import Data.Article (Article)
+import Data.Article (Article, ArticleList)
 import Data.Const (Const)
 import Data.GlobalState (WithCommon)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -57,7 +57,7 @@ type State
       ( WithCommon
           ( profile :: LoadState Profile
           , page :: SubPage
-          , articles :: LoadState (Array Article)
+          , articles :: LoadState ArticleList
           )
       )
 
@@ -149,10 +149,7 @@ render state =
               ]
           ]
   where
-  showArticles = case _ of
-    Loading -> [ HH.div_ [ HH.text "Loading" ] ]
-    LoadError err -> [ HH.div [ HP.classes [ BS.alert, BS.alertDanger ] ] [ Utils.errorDisplay err ] ]
-    Loaded articles -> map (ArticlePreview.render <*> preventDefault <<< FavoritedButtonClicked) articles
+  showArticles articles = ArticlePreview.renderArticleList articles $ preventDefault <<< FavoritedButtonClicked
 
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action

@@ -4,7 +4,7 @@ import Prelude
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import Data.Article (Article)
+import Data.Article (Article, ArticleList)
 import Data.Const (Const)
 import Data.GlobalState (WithCommon)
 import Data.Maybe (Maybe(..), maybe)
@@ -45,7 +45,7 @@ type State
   = Record
       ( WithCommon
           ( tags :: LoadState (Array Tag)
-          , articles :: LoadState (Array Article)
+          , articles :: LoadState ArticleList
           , selected :: Tab
           )
       )
@@ -86,10 +86,7 @@ initialState { currentUser, urls } =
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    articles = case state.articles of
-      Loading -> [ HH.text "Loading" ]
-      Loaded as -> map (ArticlePreview.render <*> preventDefault <<< Favorited) as
-      LoadError error -> [ Utils.errorDisplay error ]
+    articles = ArticlePreview.renderArticleList state.articles $ preventDefault <<< Favorited
 
     tagList = case state.tags of
       Loading -> HH.div_ []
@@ -221,6 +218,7 @@ handleAction = case _ of
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
+  updateArticles :: LoadState ArticleList -> State -> State
   updateArticles v = _ { articles = v }
 
   loadArticles urls token = load (API.getArticles urls token) updateArticles

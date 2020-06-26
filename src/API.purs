@@ -23,7 +23,7 @@ import API.Utils as Utils
 import Affjax (request, printError) as AJ
 import Affjax.StatusCode (StatusCode(..)) as AJ
 import Data.Argonaut as A
-import Data.Article (Slug, Article)
+import Data.Article (Article, ArticleList(..), Slug)
 import Data.Comment (Comment)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -53,25 +53,25 @@ request r = do
 getArticle :: UrlRepository -> Slug -> Maybe Token -> Aff (Response Article)
 getArticle url s t = (request $ E.article url s t) <%> _.article
 
-getArticles :: UrlRepository -> Maybe Token -> Aff (Response (Array Article))
-getArticles url token = (request $ E.allArticles url token) <%> _.articles
+getArticles :: UrlRepository -> Maybe Token -> Aff (Response ArticleList)
+getArticles url token = (request $ E.allArticles url token) <%> ArticleList
 
-getUserArticles :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
+getUserArticles :: UrlRepository -> Username -> Maybe Token -> Aff (Response ArticleList)
 getUserArticles url user token =
   ( request
       $ E.articles url (Url.defaultArticleOptions { author = Just user }) token
   )
-    <%> _.articles
+    <%> ArticleList
 
-getTaggedArticles :: UrlRepository -> Tag -> Maybe Token -> Aff (Response (Array Article))
+getTaggedArticles :: UrlRepository -> Tag -> Maybe Token -> Aff (Response ArticleList)
 getTaggedArticles url tag token =
   ( request
       $ E.articles url (Url.defaultArticleOptions { tag = Just tag }) token
   )
-    <%> _.articles
+    <%> ArticleList
 
-getFavorites :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
-getFavorites url user token = (request $ E.articles url (Url.defaultArticleOptions { favorited = Just user }) token) <%> _.articles
+getFavorites :: UrlRepository -> Username -> Maybe Token -> Aff (Response ArticleList)
+getFavorites url user token = (request $ E.articles url (Url.defaultArticleOptions { favorited = Just user }) token) <%> ArticleList
 
 getProfile :: UrlRepository -> Username -> Maybe Token -> Aff (Response Profile)
 getProfile url u token = (request $ E.profile url u token) <%> _.profile
@@ -82,8 +82,8 @@ getTags url = (request $ E.tags url) <%> _.tags
 getComments :: UrlRepository -> Slug -> Maybe Token -> Aff (Response (Array Comment))
 getComments url slug token = (request $ E.comments url slug token) <%> _.comments
 
-getFeed :: UrlRepository -> Token -> Aff (Response (Array Article))
-getFeed url token = (request $ E.feed url token) <%> _.articles
+getFeed :: UrlRepository -> Token -> Aff (Response ArticleList)
+getFeed url token = (request $ E.feed url token) <%> ArticleList
 
 loginR :: UrlRepository -> { email :: String, password :: String } -> Aff (Response User)
 loginR url user = (request $ E.login url { user }) <%> _.user

@@ -1,9 +1,8 @@
 module Templates.ArticlePreview where
 
 import Prelude
-
 import Classes as C
-import Data.Article (Article)
+import Data.Article (Article, ArticleList, fromArticles)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.User (fromImage)
@@ -11,12 +10,13 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import LoadState (LoadState(..))
 import Router (profileUrl, showArticleUrl)
 import Utils as Utils
 import Web.UIEvent.MouseEvent (MouseEvent)
 
-render :: forall w i. Article -> (MouseEvent -> Maybe i) -> HH.HTML w i
-render article favorite =
+renderArticle :: forall w i. Article -> (MouseEvent -> Maybe i) -> HH.HTML w i
+renderArticle article favorite =
   let
     username = unwrap article.author.username
 
@@ -44,3 +44,9 @@ render article favorite =
       ]
   where
   mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
+
+renderArticleList :: forall w i. LoadState ArticleList -> (Article -> MouseEvent -> Maybe i) -> Array (HH.HTML w i)
+renderArticleList list favorite = case list of
+  Loading -> [ HH.text "Loading" ]
+  Loaded as -> fromArticles (renderArticle <*> favorite) as
+  LoadError error -> [ Utils.errorDisplay error ]
