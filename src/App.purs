@@ -134,14 +134,14 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       , currentUser
       , urls
       }
-      absurd
+      handleProfileMessages
   Favorites username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Favorited username)
       , currentUser
       , urls
       }
-      absurd
+      handleProfileMessages
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
   DevTools -> HH.slot _devTools unit Pages.DevTools.component { urls } handleDevToolMessages
   where
@@ -154,7 +154,7 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       { currentUser: user, urls }
       handleSettingsMessages
 
-  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser } absurd
+  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser } handleHomePageMessages
 
   newArticle user =
     HH.slot _newArticle
@@ -235,3 +235,15 @@ handleDevToolMessages =
   Just
     <<< case _ of
         Pages.DevTools.RootChanged root -> ChangeUrls root
+
+handleHomePageMessages :: Pages.Home.Output -> Maybe Action
+handleHomePageMessages =
+  Just
+    <<< case _ of
+        Pages.Home.Redirect url -> Redirect url
+
+handleProfileMessages :: Pages.Profile.Output -> Maybe Action
+handleProfileMessages =
+  Just
+    <<< case _ of
+        Pages.Profile.Redirect url -> Redirect url
