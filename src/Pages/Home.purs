@@ -18,6 +18,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
+import Router (loginUrl)
 import Templates.ArticlePreview as ArticlePreview
 import Utils as Utils
 import Web.Event.Event (Event)
@@ -26,8 +27,8 @@ import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 type Query
   = Const Void
 
-type Output
-  = Void
+data Output
+  = Redirect String
 
 type Slot
   = H.Slot Query Output
@@ -179,10 +180,10 @@ selectTag :: Tag -> MouseEvent -> Maybe Action
 selectTag tag = selectTab $ TagFeed tag
 
 handleAction ∷
-  forall o m.
+  forall m.
   MonadAff m =>
   Action ->
-  H.HalogenM State Action ChildSlots o m Unit
+  H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
     { currentUser, urls } <- H.get
@@ -215,7 +216,7 @@ handleAction = case _ of
     let
       token = currentUser <#> _.token
     token
-      # maybe (pure unit) \tok ->
+      # maybe (H.raise (Redirect loginUrl)) \tok ->
           Utils.favorite urls article tok updateArticles _.articles
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction

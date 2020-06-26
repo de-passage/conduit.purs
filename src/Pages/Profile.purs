@@ -16,7 +16,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import LoadState (LoadState(..), load)
-import Router (favoritesUrl, profileUrl)
+import Router (favoritesUrl, loginUrl, profileUrl)
 import Templates.ArticlePreview as ArticlePreview
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
@@ -25,8 +25,8 @@ import Web.UIEvent.MouseEvent (MouseEvent, toEvent)
 type Query
   = Const Void
 
-type Output
-  = Void
+data Output
+  = Redirect String
 
 data SubPage
   = Authored Username
@@ -176,12 +176,12 @@ handleAction = case _ of
     let
       token = currentUser <#> _.token
     token
-      # maybe (pure unit) \tok ->
+      # maybe (H.raise (Redirect loginUrl)) \tok ->
           Utils.favorite urls article tok (\art -> _ { articles = art }) _.articles
   FollowButtonClicked profile -> do
     { currentUser, urls } <- H.get
     currentUser
-      # maybe (pure unit) \user ->
+      # maybe (H.raise (Redirect loginUrl)) \user ->
           Utils.follow urls profile user.token (\prof -> _ { profile = prof })
   PreventDefault event action -> Utils.preventDefault event action handleAction
   where
