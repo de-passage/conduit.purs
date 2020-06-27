@@ -13,6 +13,7 @@ import API.Url (UrlRepository)
 import API.Url as Urls
 import Control.Alt ((<|>))
 import Data.Argonaut as A
+import Data.Article (PerPage, perPage)
 import Data.Either (hush)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -99,10 +100,10 @@ saveRepository repo = do
 
   serialize (CustomBackend addr) = A.stringify $ A.encodeJson $ custom addr
 
-savePerPage :: Int -> Effect Unit
+savePerPage :: PerPage -> Effect Unit
 savePerPage i = localStorage >>= setItem perPageKey (show i)
 
-retrievePerPage :: Effect Int
+retrievePerPage :: Effect PerPage
 retrievePerPage = do
   s <- localStorage
   mstr <- getItem perPageKey s
@@ -110,4 +111,4 @@ retrievePerPage = do
     i = do
       str <- mstr
       fromString str
-  pure $ fromMaybe 20 i
+  pure $ perPage $ fromMaybe 20 i

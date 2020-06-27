@@ -2,7 +2,9 @@ module App where
 
 import Prelude
 import API.Url as Urls
+import Data.Article as A
 import Data.Either as E
+import Data.GlobalState (Paginated)
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Root (Root)
@@ -34,7 +36,7 @@ data Action
   | Redirect String
   | UpdateUser User
   | ChangeUrls Root
-  | ChangePerPage Int
+  | ChangePerPage A.PerPage
 
 data Query a
   = ChangeRoute String a
@@ -51,11 +53,13 @@ type ChildSlots
     )
 
 type Input
-  = { url :: String
-    , user :: Maybe User
-    , repo :: Urls.UrlRepository
-    , perPage :: Int
-    }
+  = Record
+      ( Paginated
+          ( url :: String
+          , user :: Maybe User
+          , repo :: Urls.UrlRepository
+          )
+      )
 
 _homePage :: SProxy "homepage"
 _homePage = SProxy

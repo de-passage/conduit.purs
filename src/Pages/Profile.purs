@@ -4,7 +4,7 @@ import Prelude
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import Data.Article (Article, ArticleList)
+import Data.Article as A
 import Data.Const (Const)
 import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -60,7 +60,7 @@ type State
           ( WithCommon
               ( profile :: LoadState Profile
               , page :: SubPage
-              , articles :: LoadState ArticleList
+              , articles :: LoadState A.ArticleList
               )
           )
       )
@@ -69,7 +69,7 @@ data Action
   = Init
   | Receive Input
   | PreventDefault Event (Maybe Action)
-  | FavoritedButtonClicked Article
+  | FavoritedButtonClicked A.Article
   | FollowButtonClicked Profile
 
 type ChildSlots
@@ -154,7 +154,7 @@ render state =
               ]
           ]
   where
-  showArticles articles = ArticlePreview.renderArticleList state.perPage articles $ preventDefault <<< FavoritedButtonClicked
+  showArticles articles = ArticlePreview.renderArticleList (A.firstPage state.perPage) articles $ preventDefault <<< FavoritedButtonClicked
 
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action

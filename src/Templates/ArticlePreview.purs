@@ -2,7 +2,7 @@ module Templates.ArticlePreview where
 
 import Prelude
 import Classes as C
-import Data.Article (Article, ArticleList, fromArticles)
+import Data.Article (Article, ArticleDisplaySettings, ArticleList, fromArticles)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.User (fromImage)
@@ -47,9 +47,9 @@ renderArticle article favorite =
 
 renderArticleList ::
   forall w i.
-  Int ->
+  ArticleDisplaySettings ->
   LoadState ArticleList -> (Article -> MouseEvent -> Maybe i) -> Array (HH.HTML w i)
-renderArticleList aPerPage list favorite = case list of
+renderArticleList settings list favorite = case list of
   Loading -> [ HH.text "Loading" ]
   Loaded as -> fromArticles (renderArticle <*> favorite) as
   LoadError error -> [ Utils.errorDisplay error ]

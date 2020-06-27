@@ -1,6 +1,7 @@
 module Data.GlobalState where
 
 import API.Url (UrlRepository)
+import Data.Article (PerPage)
 import Data.Maybe (Maybe)
 import Data.User (User)
 import Router (Route)
@@ -28,4 +29,4 @@ type WithCommon r
   = WithUser (WithUrls r)
 
 type Paginated r
-  = ( perPage :: Int | r )
+  = ( perPage :: PerPage | r )

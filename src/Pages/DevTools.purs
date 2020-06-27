@@ -4,6 +4,7 @@ import Prelude
 import API.Url (UrlRepository)
 import Classes as C
 import Data.Array (cons)
+import Data.Article as A
 import Data.Const (Const)
 import Data.GlobalState (Paginated)
 import Data.Int (fromString)
@@ -25,7 +26,7 @@ type Input
 
 data Output
   = RootChanged Root
-  | PerPageChanged Int
+  | PerPageChanged A.PerPage
 
 type Query
   = Const Void
@@ -46,7 +47,7 @@ data Action
   | ChangeLocalhostPort Int
   | Select Option
   | PreventDefault Event (Maybe Action)
-  | ChangePerPage Int
+  | ChangePerPage A.PerPage
   | ApplyPerPageChange
 
 type State
@@ -161,7 +162,7 @@ component =
                         , HH.input
                             [ HP.type_ HP.InputNumber
                             , HP.min 0.0
-                            , HE.onValueChange $ fromString >=> (Just <<< ChangePerPage)
+                            , HE.onValueChange $ fromString >=> (Just <<< ChangePerPage <<< A.perPage)
                             , HP.value (show s.perPage)
                             ]
                         ]

@@ -4,7 +4,7 @@ import Prelude
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import Data.Article (Article, ArticleList)
+import Data.Article as A
 import Data.Const (Const)
 import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), maybe)
@@ -46,7 +46,7 @@ type State
       ( Paginated
           ( WithCommon
               ( tags :: LoadState (Array Tag)
-              , articles :: LoadState ArticleList
+              , articles :: LoadState A.ArticleList
               , selected :: Tab
               )
           )
@@ -57,7 +57,7 @@ data Action
   | Receive Input
   | TabSelected Tab
   | PreventDefault Event (Maybe Action)
-  | Favorited Article
+  | Favorited A.Article
 
 type ChildSlots
   = ()
@@ -89,7 +89,7 @@ initialState { currentUser, urls, perPage } =
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    articles = ArticlePreview.renderArticleList state.perPage state.articles $ preventDefault <<< Favorited
+    articles = ArticlePreview.renderArticleList (A.firstPage state.perPage) state.articles $ preventDefault <<< Favorited
 
     tagList = case state.tags of
       Loading -> HH.div_ []
@@ -221,7 +221,7 @@ handleAction = case _ of
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
   where
-  updateArticles :: LoadState ArticleList -> State -> State
+  updateArticles :: LoadState A.ArticleList -> State -> State
   updateArticles v = _ { articles = v }
 
   loadArticles urls token = load (API.getArticles urls token) updateArticles
