@@ -4,6 +4,8 @@ module Storage
   , retrieveUser
   , retrieveRepository
   , saveRepository
+  , savePerPage
+  , retrievePerPage
   ) where
 
 import Prelude
@@ -12,6 +14,7 @@ import API.Url as Urls
 import Control.Alt ((<|>))
 import Data.Argonaut as A
 import Data.Either (hush)
+import Data.Int (fromString)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Root (Root(..))
 import Data.User (User)
@@ -25,6 +28,9 @@ userKey = "conduit-user"
 
 urlRepoKey :: String
 urlRepoKey = "conduit-url-repository"
+
+perPageKey :: String
+perPageKey = "conduit-url-articles-per-page"
 
 localStorage :: Effect Storage
 localStorage = do
@@ -92,3 +98,16 @@ saveRepository repo = do
   serialize (LocalHost port) = A.stringify $ A.encodeJson $ localhost port
 
   serialize (CustomBackend addr) = A.stringify $ A.encodeJson $ custom addr
+
+savePerPage :: Int -> Effect Unit
+savePerPage i = localStorage >>= setItem perPageKey (show i)
+
+retrievePerPage :: Effect Int
+retrievePerPage = do
+  s <- localStorage
+  mstr <- getItem perPageKey s
+  let
+    i = do
+      str <- mstr
+      fromString str
+  pure $ fromMaybe 20 i

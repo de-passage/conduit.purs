@@ -45,8 +45,11 @@ renderArticle article favorite =
   where
   mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
 
-renderArticleList :: forall w i. LoadState ArticleList -> (Article -> MouseEvent -> Maybe i) -> Array (HH.HTML w i)
-renderArticleList list favorite = case list of
+renderArticleList ::
+  forall w i.
+  Int ->
+  LoadState ArticleList -> (Article -> MouseEvent -> Maybe i) -> Array (HH.HTML w i)
+renderArticleList aPerPage list favorite = case list of
   Loading -> [ HH.text "Loading" ]
   Loaded as -> fromArticles (renderArticle <*> favorite) as
   LoadError error -> [ Utils.errorDisplay error ]

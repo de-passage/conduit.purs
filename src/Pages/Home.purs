@@ -6,7 +6,7 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article, ArticleList)
 import Data.Const (Const)
-import Data.GlobalState (WithCommon)
+import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Tag (Tag)
@@ -34,7 +34,7 @@ type Slot
   = H.Slot Query Output
 
 type Input
-  = Record (WithCommon ())
+  = Record (Paginated (WithCommon ()))
 
 data Tab
   = GlobalFeed
@@ -43,10 +43,12 @@ data Tab
 
 type State
   = Record
-      ( WithCommon
-          ( tags :: LoadState (Array Tag)
-          , articles :: LoadState ArticleList
-          , selected :: Tab
+      ( Paginated
+          ( WithCommon
+              ( tags :: LoadState (Array Tag)
+              , articles :: LoadState ArticleList
+              , selected :: Tab
+              )
           )
       )
 
@@ -75,18 +77,19 @@ component =
     }
 
 initialState :: Input -> State
-initialState { currentUser, urls } =
+initialState { currentUser, urls, perPage } =
   { articles: Loading
   , tags: Loading
   , selected: maybe GlobalFeed PersonalFeed currentUser
   , currentUser
   , urls
+  , perPage
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    articles = ArticlePreview.renderArticleList state.articles $ preventDefault <<< Favorited
+    articles = ArticlePreview.renderArticleList state.perPage state.articles $ preventDefault <<< Favorited
 
     tagList = case state.tags of
       Loading -> HH.div_ []
@@ -183,9 +186,9 @@ handleAction ∷
   H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
-    { currentUser, urls } <- H.get
-    handleAction (Receive { currentUser, urls })
-  Receive { currentUser, urls } ->
+    { currentUser, urls, perPage } <- H.get
+    handleAction (Receive { currentUser, urls, perPage })
+  Receive { currentUser, urls, perPage } ->
     let
       loadArts = maybe (loadArticles urls Nothing) (loadPersonal urls) currentUser
     in

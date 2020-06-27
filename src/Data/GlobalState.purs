@@ -7,8 +7,10 @@ import Router (Route)
 
 type State
   = Record
-      ( WithCommon
-          ( currentRoute :: Route
+      ( Paginated
+          ( WithCommon
+              ( currentRoute :: Route
+              )
           )
       )
 
@@ -24,3 +26,6 @@ type WithUrls r
 
 type WithCommon r
   = WithUser (WithUrls r)
+
+type Paginated r
+  = ( perPage :: Int | r )

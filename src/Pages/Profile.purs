@@ -6,7 +6,7 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article (Article, ArticleList)
 import Data.Const (Const)
-import Data.GlobalState (WithCommon)
+import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.User (Profile, Username, fromImage)
@@ -34,8 +34,10 @@ data SubPage
 
 type Input
   = Record
-      ( WithCommon
-          ( page :: SubPage
+      ( Paginated
+          ( WithCommon
+              ( page :: SubPage
+              )
           )
       )
 
@@ -54,10 +56,12 @@ type Slot
 
 type State
   = Record
-      ( WithCommon
-          ( profile :: LoadState Profile
-          , page :: SubPage
-          , articles :: LoadState ArticleList
+      ( Paginated
+          ( WithCommon
+              ( profile :: LoadState Profile
+              , page :: SubPage
+              , articles :: LoadState ArticleList
+              )
           )
       )
 
@@ -86,12 +90,13 @@ component =
     }
 
 initialState :: Input -> State
-initialState { page, currentUser, urls } =
+initialState { page, currentUser, urls, perPage } =
   { profile: Loading
   , page
   , articles: Loading
   , currentUser
   , urls
+  , perPage
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -149,7 +154,7 @@ render state =
               ]
           ]
   where
-  showArticles articles = ArticlePreview.renderArticleList articles $ preventDefault <<< FavoritedButtonClicked
+  showArticles articles = ArticlePreview.renderArticleList state.perPage articles $ preventDefault <<< FavoritedButtonClicked
 
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
@@ -162,7 +167,7 @@ handleAction ∷
 handleAction = case _ of
   Init -> do
     state <- H.get
-    handleAction (Receive { page: state.page, currentUser: state.currentUser, urls: state.urls })
+    handleAction (Receive { page: state.page, currentUser: state.currentUser, urls: state.urls, perPage: state.perPage })
   Receive { page, currentUser, urls } -> do
     let
       token = currentUser <#> _.token
