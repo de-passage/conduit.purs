@@ -3,7 +3,7 @@ module Templates.ArticlePreview where
 import Prelude
 import Classes as C
 import Data.Array (snoc)
-import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, fromArticles, fromPageNumber, isFirst, isLast, lastPage, mapPages, nextPage, previousPage, toOffset)
+import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Distance(..), Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, foldPages, fromArticles, fromPageNumber, isFirst, isLast, lastPage, nextPage, previousPage, toOffset)
 import Data.DefaultPreventable (class DefaultPreventable, preventDefaults)
 import Data.Lens (view, (^.))
 import Data.Maybe (Maybe(..))
@@ -96,25 +96,62 @@ renderArticleList mkSettings loadArts list favorite = case list of
     , item (lastPage settings) "Last" loadArts (not $ isLast settings)
     ]
 
+  listPages :: ArticleDisplaySettings -> (PageNumber -> Offset -> MouseEvent -> Maybe i) -> Array (HH.HTML w i)
   listPages settings action =
-    mapPages settings case _ of
-      CurrentPage pn ->
-        HH.li [ HP.class_ BS.pageItem ]
-          [ HH.a
-              [ HP.href ""
-              , HE.onClick (preventDefaults (Nothing :: Maybe i))
-              , HP.classes [ BS.pageLink, BS.active, BS.btnPrimary ]
+    foldPages
+      settings
+      { arr: [], fillerInserted: false }
+      (folder action)
+      # _.arr
+
+  folder ::
+    (PageNumber -> Offset -> MouseEvent -> Maybe i) ->
+    { arr :: Array (HH.HTML w i), fillerInserted :: Boolean } ->
+    Page ->
+    { arr :: Array (HH.HTML w i), fillerInserted :: Boolean }
+  folder action { arr, fillerInserted } = case _ of
+    CurrentPage pn ->
+      let
+        el =
+          HH.li [ HP.class_ BS.pageItem ]
+            [ HH.a
+                [ HE.onClick (preventDefaults (Nothing :: Maybe i))
+                , HP.classes [ BS.pageLink, BS.active, BS.btnPrimary ]
+                , HP.tabIndex (-1)
+                ]
+                [ HH.text $ show $ fromPageNumber pn + 1
+                ]
+            ]
+      in
+        { arr: arr `snoc` el, fillerInserted: false }
+    OtherPage pn offset (Distance fromCurrent) (Distance fromEdge) ->
+      if fromCurrent > 1 && fromEdge > 1 then
+        if fillerInserted then
+          { arr, fillerInserted }
+        else
+          let
+            filler =
+              HH.li [ HP.class_ BS.pageItem ]
+                [ HH.a
+                    [ HE.onClick (preventDefaults (Nothing :: Maybe i))
+                    , HP.classes [ BS.disabled, BS.pageLink ]
+                    , HP.tabIndex (-1)
+                    ]
+                    [ HH.text "..." ]
+                ]
+          in
+            { arr: arr `snoc` filler, fillerInserted: true }
+      else
+        let
+          el =
+            HH.li [ HP.class_ BS.pageItem ]
+              [ HH.a
+                  [ HP.href ""
+                  , HE.onClick $ action pn offset
+                  , HP.class_ BS.pageLink
+                  ]
+                  [ HH.text $ show $ fromPageNumber pn + 1
+                  ]
               ]
-              [ HH.text $ show $ fromPageNumber pn + 1
-              ]
-          ]
-      OtherPage pn offset _ ->
-        HH.li [ HP.class_ BS.pageItem ]
-          [ HH.a
-              [ HP.href ""
-              , HE.onClick $ action pn offset
-              , HP.class_ BS.pageLink
-              ]
-              [ HH.text $ show $ fromPageNumber pn + 1
-              ]
-          ]
+        in
+          { arr: arr `snoc` el, fillerInserted: false }
