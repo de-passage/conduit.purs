@@ -3,7 +3,7 @@ module Templates.ArticlePreview where
 import Prelude
 import Classes as C
 import Data.Array (snoc)
-import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, fromArticles, isFirst, isLast, lastPage, mapPages, nextPage, previousPage, toOffset)
+import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, fromArticles, fromPageNumber, isFirst, isLast, lastPage, mapPages, nextPage, previousPage, toOffset)
 import Data.DefaultPreventable (class DefaultPreventable, preventDefaults)
 import Data.Lens (view, (^.))
 import Data.Maybe (Maybe(..))
@@ -105,7 +105,7 @@ renderArticleList mkSettings loadArts list favorite = case list of
               , HE.onClick (preventDefaults (Nothing :: Maybe i))
               , HP.classes [ BS.pageLink, BS.active, BS.btnPrimary ]
               ]
-              [ HH.text $ show pn
+              [ HH.text $ show $ fromPageNumber pn + 1
               ]
           ]
       OtherPage pn offset _ ->
@@ -115,6 +115,6 @@ renderArticleList mkSettings loadArts list favorite = case list of
               , HE.onClick $ action pn offset
               , HP.class_ BS.pageLink
               ]
-              [ HH.text $ show pn
+              [ HH.text $ show $ fromPageNumber pn + 1
               ]
           ]

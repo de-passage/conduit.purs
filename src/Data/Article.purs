@@ -31,6 +31,7 @@ module Data.Article
   , mapPages
   , Page(..)
   , Distance(..)
+  , fromPageNumber
   ) where
 
 import Prelude
