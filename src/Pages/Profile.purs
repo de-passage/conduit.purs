@@ -6,6 +6,7 @@ import Classes as C
 import Control.Parallel (parSequence_)
 import Data.Article as A
 import Data.Const (Const)
+import Data.DefaultPreventable (class DefaultPreventable, defaultPreventDefaults)
 import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
@@ -34,10 +35,9 @@ data SubPage
 
 type Input
   = Record
-      ( Paginated
-          ( WithCommon
-              ( page :: SubPage
-              )
+      ( WithCommon
+          ( page :: SubPage
+          , perPage :: A.PerPage
           )
       )
 
@@ -71,6 +71,11 @@ data Action
   | PreventDefault Event (Maybe Action)
   | FavoritedButtonClicked A.Article
   | FollowButtonClicked Profile
+  | RequestNewPage A.PageNumber A.Offset
+
+instance defaultPreventableAction :: DefaultPreventable Action where
+  action = PreventDefault
+  preventDefaults = defaultPreventDefaults
 
 type ChildSlots
   = ()
@@ -97,6 +102,7 @@ initialState { page, currentUser, urls, perPage } =
   , currentUser
   , urls
   , perPage
+  , pageNumber: A.emptyPageNumber
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
@@ -138,23 +144,28 @@ render state =
               [ HH.div [ HP.class_ BS.row ]
                   [ HH.div [ HP.classes [ C.colXs12, BS.colMd10, BS.offsetMd1 ] ]
                       [ HH.div [ HP.class_ C.articleToggle ]
-                          ( [ HH.ul [ HP.classes [ BS.nav, BS.navPills, C.outlineActive ] ]
-                                [ HH.li [ HP.class_ BS.navItem ]
-                                    [ HH.a [ HP.classes articleClass, HP.href (profileUrl profile.username) ] [ HH.text "My Articles" ]
-                                    ]
-                                , HH.li [ HP.class_ BS.navItem ]
-                                    [ HH.a [ HP.classes favoriteClass, HP.href (favoritesUrl profile.username) ] [ HH.text "Favored Articles" ]
-                                    ]
-                                ]
-                            ]
-                              <> showArticles state.articles
-                          )
+                          [ HH.ul [ HP.classes [ BS.nav, BS.navPills, C.outlineActive ] ]
+                              [ HH.li [ HP.class_ BS.navItem ]
+                                  [ HH.a [ HP.classes articleClass, HP.href (profileUrl profile.username) ] [ HH.text "My Articles" ]
+                                  ]
+                              , HH.li [ HP.class_ BS.navItem ]
+                                  [ HH.a [ HP.classes favoriteClass, HP.href (favoritesUrl profile.username) ] [ HH.text "Favored Articles" ]
+                                  ]
+                              ]
+                          , showArticles state.articles
+                          ]
                       ]
                   ]
               ]
           ]
   where
-  showArticles articles = ArticlePreview.renderArticleList (A.firstPage state.perPage) articles $ preventDefault <<< FavoritedButtonClicked
+  showArticles articles =
+    ArticlePreview.renderArticleList
+      (A.mkDisplaySettings state.pageNumber state.perPage)
+      (\o p -> preventDefault $ RequestNewPage o p)
+      articles
+      $ preventDefault
+      <<< FavoritedButtonClicked
 
   preventDefault :: Action -> MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (toEvent event) $ Just action
@@ -169,9 +180,10 @@ handleAction = case _ of
     state <- H.get
     handleAction (Receive { page: state.page, currentUser: state.currentUser, urls: state.urls, perPage: state.perPage })
   Receive { page, currentUser, urls } -> do
+    { perPage, pageNumber } <- H.get
     let
       token = currentUser <#> _.token
-    parSequence_ [ loadProfile urls page token, loadArticles urls page token ]
+    parSequence_ [ loadProfile urls page token, loadArticles page urls A.noOffset perPage pageNumber token ]
     H.modify_ (_ { page = page, currentUser = currentUser, urls = urls })
   FavoritedButtonClicked article -> do
     { currentUser, urls } <- H.get
@@ -185,12 +197,19 @@ handleAction = case _ of
     currentUser
       # maybe (H.raise (Redirect loginUrl)) \user ->
           Utils.follow urls profile user.token (\prof -> _ { profile = prof })
+  RequestNewPage pn offset -> do
+    { page, currentUser, urls, perPage } <- H.get
+    let
+      token = currentUser <#> _.token
+    loadArticles page urls offset perPage pn token
   PreventDefault event action -> Utils.preventDefault event action handleAction
   where
-  setArticles c u v s = s { articles = v, page = c u }
+  setArticles c u pn v s = s { articles = v, page = c u, pageNumber = pn }
 
   loadProfile urls username token = load (API.getProfile urls (extract username) token) (\v -> _ { profile = v })
 
-  loadArticles urls (Authored username) token = load (API.getUserArticles urls username token) $ setArticles Authored username
+  loadArticles (Authored username) = loadA API.getUserArticles Authored username
 
-  loadArticles urls (Favorited username) token = load (API.getFavorites urls username token) $ setArticles Favorited username
+  loadArticles (Favorited username) = loadA API.getFavorites Favorited username
+
+  loadA f a username urls offset perPage pageNumber token = load (f urls username offset perPage token) $ setArticles a username pageNumber

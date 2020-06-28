@@ -6,7 +6,6 @@ import Classes as C
 import Data.Array (cons)
 import Data.Article as A
 import Data.Const (Const)
-import Data.GlobalState (Paginated)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..))
 import Data.Root (Root(..))
@@ -22,7 +21,7 @@ import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent as ME
 
 type Input
-  = Record (Paginated ( urls :: UrlRepository ))
+  = Record ( urls :: UrlRepository, perPage :: A.PerPage )
 
 data Output
   = RootChanged Root
@@ -52,12 +51,11 @@ data Action
 
 type State
   = Record
-      ( Paginated
-          ( urls :: UrlRepository
-          , customRootText :: String
-          , localHostPort :: Int
-          , localSelection :: Option
-          )
+      ( urls :: UrlRepository
+      , customRootText :: String
+      , localHostPort :: Int
+      , localSelection :: Option
+      , perPage :: A.PerPage
       )
 
 type ChildSlots
@@ -154,17 +152,24 @@ component =
                     , HH.button [ HP.classes [ BS.btn, BS.btnPrimary ], HE.onClick $ preventDefault ChangeRoot ]
                         [ HH.text "Apply" ]
                     ]
-                ]
-            , HH.form [ HP.class_ BS.formInline ]
-                [ HH.div [ HP.class_ BS.formGroup ]
-                    [ HH.label_
-                        [ HH.text "Articles per pages: "
-                        , HH.input
-                            [ HP.type_ HP.InputNumber
-                            , HP.min 0.0
-                            , HE.onValueChange $ fromString >=> (Just <<< ChangePerPage <<< A.perPage)
-                            , HP.value (show s.perPage)
+                , HH.hr_
+                , HH.form [ HP.class_ BS.formInline ]
+                    [ HH.div [ HP.class_ BS.formGroup ]
+                        [ HH.label_
+                            [ HH.text "Articles per pages: "
+                            , HH.input
+                                [ HP.type_ HP.InputNumber
+                                , HP.min 1.0
+                                , HP.class_ BS.formControl
+                                , HE.onValueChange $ fromString >=> (Just <<< ChangePerPage <<< A.perPage)
+                                , HP.value (show s.perPage)
+                                ]
                             ]
+                        , HH.button
+                            [ HP.classes [ BS.btn, BS.btnPrimary ]
+                            , HE.onClick $ preventDefault ApplyPerPageChange
+                            ]
+                            [ HH.text "Apply" ]
                         ]
                     ]
                 ]

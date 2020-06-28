@@ -1,7 +1,7 @@
 module API.Response where
 
 import Prelude
-import Data.Article (Article)
+import Data.Article (Article, ArticleCount)
 import Data.Comment (Comment)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
@@ -22,7 +22,7 @@ type ArticleResponse
 article = Proxy :: Proxy ArticleResponse
 
 type ArticlesResponse
-  = { articles :: Array Article, articlesCount :: Int }
+  = { articles :: Array Article, articlesCount :: ArticleCount }
 
 articles = Proxy :: Proxy ArticlesResponse
 

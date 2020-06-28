@@ -4,7 +4,6 @@ import Prelude
 import API.Url as Urls
 import Data.Article as A
 import Data.Either as E
-import Data.GlobalState (Paginated)
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
 import Data.Root (Root)
@@ -54,11 +53,10 @@ type ChildSlots
 
 type Input
   = Record
-      ( Paginated
-          ( url :: String
-          , user :: Maybe User
-          , repo :: Urls.UrlRepository
-          )
+      ( url :: String
+      , user :: Maybe User
+      , repo :: Urls.UrlRepository
+      , perPage :: A.PerPage
       )
 
 _homePage :: SProxy "homepage"
