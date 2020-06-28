@@ -2,6 +2,7 @@ module App where
 
 import Prelude
 import API.Url as Urls
+import Data.Article as A
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
@@ -34,6 +35,7 @@ data Action
   | Redirect String
   | UpdateUser User
   | ChangeUrls Root
+  | ChangePerPage A.PerPage
 
 data Query a
   = ChangeRoute String a
@@ -50,10 +52,12 @@ type ChildSlots
     )
 
 type Input
-  = { url :: String
-    , user :: Maybe User
-    , repo :: Urls.UrlRepository
-    }
+  = Record
+      ( url :: String
+      , user :: Maybe User
+      , repo :: Urls.UrlRepository
+      , perPage :: A.PerPage
+      )
 
 _homePage :: SProxy "homepage"
 _homePage = SProxy
@@ -93,7 +97,12 @@ component =
     }
 
 initialState :: Input -> State
-initialState { url, user, repo } = { currentRoute: initialRoute, currentUser: user, urls: repo }
+initialState { url, user, repo, perPage } =
+  { currentRoute: initialRoute
+  , currentUser: user
+  , urls: repo
+  , perPage
+  }
   where
   initialRoute :: Route
   initialRoute =
@@ -111,7 +120,7 @@ render state =
     ]
 
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
-showPage r s@{ urls, currentUser, currentRoute } = case r of
+showPage r s@{ urls, currentUser, currentRoute, perPage } = case r of
   Home -> home
   Login ->
     HH.slot _authentication unit Pages.Authentication.component
@@ -133,6 +142,7 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       { page: (Pages.Profile.Authored username)
       , currentUser
       , urls
+      , perPage
       }
       handleProfileMessages
   Favorites username ->
@@ -140,10 +150,11 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       { page: (Pages.Profile.Favorited username)
       , currentUser
       , urls
+      , perPage
       }
       handleProfileMessages
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
-  DevTools -> HH.slot _devTools unit Pages.DevTools.component { urls } handleDevToolMessages
+  DevTools -> HH.slot _devTools unit Pages.DevTools.component { urls, perPage } handleDevToolMessages
   where
   authenticated a b = case currentUser of
     Just user -> a user
@@ -154,7 +165,7 @@ showPage r s@{ urls, currentUser, currentRoute } = case r of
       { currentUser: user, urls }
       handleSettingsMessages
 
-  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser } handleHomePageMessages
+  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser, perPage } handleHomePageMessages
 
   newArticle user =
     HH.slot _newArticle
@@ -192,6 +203,13 @@ handleAction = case _ of
       S.saveRepository newRepo
       S.deleteStoredUser
     H.modify_ _ { currentUser = Nothing, urls = newRepo }
+  ChangePerPage perPage -> do
+    current <- H.gets _.perPage
+    if current /= perPage then do
+      H.liftEffect $ S.savePerPage perPage
+      H.modify_ _ { perPage = perPage }
+    else
+      pure unit
 
 handleQuery :: forall o m a. MonadEffect m => Query a -> H.HalogenM State Action ChildSlots o m (Maybe a)
 handleQuery = case _ of
@@ -235,6 +253,7 @@ handleDevToolMessages =
   Just
     <<< case _ of
         Pages.DevTools.RootChanged root -> ChangeUrls root
+        Pages.DevTools.PerPageChanged perPage -> ChangePerPage perPage
 
 handleHomePageMessages :: Pages.Home.Output -> Maybe Action
 handleHomePageMessages =

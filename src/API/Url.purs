@@ -10,7 +10,7 @@ module API.Url
   ) where
 
 import Data.Array (catMaybes, intercalate, length)
-import Data.Article (Slug)
+import Data.Article (Offset, PerPage, Slug)
 import Data.Comment (CommentId)
 import Data.Maybe (Maybe(..))
 import Data.Root (Root)
@@ -167,7 +167,7 @@ repository root =
   favorites u = articles $ defaultArticleOptions { favorited = Just u }
 
 type Limit
-  = ( limit :: Maybe Int, offset :: Maybe Int )
+  = ( limit :: Maybe PerPage, offset :: Maybe Offset )
 
 type ArticleLimit
   = Record Limit

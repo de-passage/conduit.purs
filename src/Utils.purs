@@ -5,7 +5,7 @@ import API as API
 import API.Response (Error, fromError)
 import API.Url (UrlRepository)
 import Classes as C
-import Data.Article (Article)
+import Data.Article (Article, class OverArticles, overArticles)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe, maybe)
 import Data.Newtype (unwrap)
@@ -71,14 +71,14 @@ follow urls profile token update = do
     Right prof -> H.modify_ $ update $ Loaded prof.profile
 
 favorite ::
-  forall a c o s m f.
+  forall a c o s m list.
   MonadAff m =>
-  Functor f =>
+  OverArticles list =>
   UrlRepository ->
   Article ->
   Token ->
-  (LoadState (f Article) -> s -> s) ->
-  (s -> LoadState (f Article)) ->
+  (LoadState list -> s -> s) ->
+  (s -> LoadState list) ->
   H.HalogenM s a c o m Unit
 favorite urls article token update retrieve = do
   request <-
@@ -97,12 +97,15 @@ favorite urls article token update retrieve = do
     Left _ -> pure unit
     Right art -> H.modify_ $ replace art.article update retrieve
 
-replace :: forall s f. Functor f => Article -> (LoadState (f Article) -> s -> s) -> (s -> LoadState (f Article)) -> s -> s
+replace ::
+  forall s list.
+  OverArticles list =>
+  Article -> (LoadState list -> s -> s) -> (s -> LoadState list) -> s -> s
 replace article update retrieve state = case retrieve state of
   Loaded arts ->
     update
       ( Loaded $ arts
-          # map \a ->
+          # overArticles \a ->
               if a.slug == article.slug then article else a
       )
       state

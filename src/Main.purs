@@ -32,6 +32,7 @@ main = do
   url <- DOM.window >>= DOM.location >>= DOM.hash <#> dropHost
   decoded <- S.retrieveUser
   repo <- S.retrieveRepository
+  perPage <- S.retrievePerPage
   HA.runHalogenAff do
     body <- HA.awaitBody
     user <-
@@ -43,7 +44,7 @@ main = do
                 Console.log $ intercalate "\n" $ R.fromError err
                 pure $ Nothing :: Aff (Maybe User.User)
               Right user -> pure $ Just user.user :: Aff (Maybe User.User)
-    io <- runUI App.component { url, user, repo } body
+    io <- runUI App.component { url, user, repo, perPage } body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
 -- taken from the Halogen examples 

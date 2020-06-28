@@ -1,22 +1,25 @@
 module Templates.ArticlePreview where
 
 import Prelude
-
 import Classes as C
-import Data.Article (Article)
-import Data.Maybe (Maybe)
+import Data.Array (snoc)
+import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, fromArticles, isFirst, isLast, lastPage, mapPages, nextPage, previousPage, toOffset)
+import Data.DefaultPreventable (class DefaultPreventable, preventDefaults)
+import Data.Lens (view, (^.))
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.User (fromImage)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import LoadState (LoadState(..))
 import Router (profileUrl, showArticleUrl)
 import Utils as Utils
 import Web.UIEvent.MouseEvent (MouseEvent)
 
-render :: forall w i. Article -> (MouseEvent -> Maybe i) -> HH.HTML w i
-render article favorite =
+renderArticle :: forall w i. Article -> (MouseEvent -> Maybe i) -> HH.HTML w i
+renderArticle article favorite =
   let
     username = unwrap article.author.username
 
@@ -44,3 +47,74 @@ render article favorite =
       ]
   where
   mkTag tag = HH.li [ HP.classes [ C.tagDefault, C.tagPill, C.tagOutline ] ] [ HH.text $ unwrap tag ]
+
+renderArticleList ::
+  forall w i.
+  DefaultPreventable i =>
+  (ArticleCount -> ArticleDisplaySettings) ->
+  (PageNumber -> Offset -> MouseEvent -> Maybe i) ->
+  LoadState ArticleList ->
+  (Article -> MouseEvent -> Maybe i) ->
+  HH.HTML w i
+renderArticleList mkSettings loadArts list favorite = case list of
+  Loading -> HH.div_ [ HH.text "Loading" ]
+  Loaded as -> HH.div_ ((fromArticles (renderArticle <*> favorite) as) `snoc` pagination (mkSettings $ view _articlesCount as))
+  LoadError error -> Utils.errorDisplay error
+  where
+  pagination :: ArticleDisplaySettings -> HH.HTML w i
+  pagination settings = HH.nav_ [ HH.ul [ HP.class_ BS.pagination ] (first settings <> listPages settings loadArts <> last settings) ]
+
+  item :: ArticleDisplaySettings -> String -> (PageNumber -> Offset -> MouseEvent -> Maybe i) -> Boolean -> HH.HTML w i
+  item settings text action isActive =
+    HH.li [ HP.class_ BS.pageItem ]
+      [ HH.a
+          ( if isActive then
+              [ HP.href ""
+              , HE.onClick
+                  (action (settings ^. _pageNumber) (toOffset settings))
+              , HP.classes [ BS.pageLink ]
+              ]
+            else
+              [ HE.onClick $ preventDefaults (Nothing :: Maybe i)
+              , HP.classes [ BS.pageLink ]
+              , HP.tabIndex (-1)
+              ]
+          )
+          [ HH.text text
+          ]
+      ]
+
+  first :: ArticleDisplaySettings -> Array (HH.HTML w i)
+  first settings =
+    [ item (firstPage settings) "First" loadArts (not $ isFirst settings)
+    , item (previousPage settings) "Previous" loadArts (not $ isFirst settings)
+    ]
+
+  last :: ArticleDisplaySettings -> Array (HH.HTML w i)
+  last settings =
+    [ item (nextPage settings) "Next" loadArts (not $ isLast settings)
+    , item (lastPage settings) "Last" loadArts (not $ isLast settings)
+    ]
+
+  listPages settings action =
+    mapPages settings case _ of
+      CurrentPage pn ->
+        HH.li [ HP.class_ BS.pageItem ]
+          [ HH.a
+              [ HP.href ""
+              , HE.onClick (preventDefaults (Nothing :: Maybe i))
+              , HP.classes [ BS.pageLink, BS.active, BS.btnPrimary ]
+              ]
+              [ HH.text $ show pn
+              ]
+          ]
+      OtherPage pn offset _ ->
+        HH.li [ HP.class_ BS.pageItem ]
+          [ HH.a
+              [ HP.href ""
+              , HE.onClick $ action pn offset
+              , HP.class_ BS.pageLink
+              ]
+              [ HH.text $ show pn
+              ]
+          ]

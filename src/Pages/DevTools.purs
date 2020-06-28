@@ -4,6 +4,7 @@ import Prelude
 import API.Url (UrlRepository)
 import Classes as C
 import Data.Array (cons)
+import Data.Article as A
 import Data.Const (Const)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..))
@@ -20,10 +21,11 @@ import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent as ME
 
 type Input
-  = { urls :: UrlRepository }
+  = Record ( urls :: UrlRepository, perPage :: A.PerPage )
 
 data Output
   = RootChanged Root
+  | PerPageChanged A.PerPage
 
 type Query
   = Const Void
@@ -44,13 +46,17 @@ data Action
   | ChangeLocalhostPort Int
   | Select Option
   | PreventDefault Event (Maybe Action)
+  | ChangePerPage A.PerPage
+  | ApplyPerPageChange
 
 type State
-  = { urls :: UrlRepository
-    , customRootText :: String
-    , localHostPort :: Int
-    , localSelection :: Option
-    }
+  = Record
+      ( urls :: UrlRepository
+      , customRootText :: String
+      , localHostPort :: Int
+      , localSelection :: Option
+      , perPage :: A.PerPage
+      )
 
 type ChildSlots
   = ()
@@ -68,7 +74,7 @@ component =
     }
   where
   initialState :: Input -> State
-  initialState { urls } =
+  initialState { urls, perPage } =
     let
       (customRootText /\ localHostPort /\ localSelection) = case urls.root of
         PublicApi -> (show PublicApi) /\ 8080 /\ Public
@@ -79,6 +85,7 @@ component =
       , customRootText
       , localSelection
       , localHostPort
+      , perPage
       }
 
   render :: State -> H.ComponentHTML Action () m
@@ -145,6 +152,26 @@ component =
                     , HH.button [ HP.classes [ BS.btn, BS.btnPrimary ], HE.onClick $ preventDefault ChangeRoot ]
                         [ HH.text "Apply" ]
                     ]
+                , HH.hr_
+                , HH.form [ HP.class_ BS.formInline ]
+                    [ HH.div [ HP.class_ BS.formGroup ]
+                        [ HH.label_
+                            [ HH.text "Articles per pages: "
+                            , HH.input
+                                [ HP.type_ HP.InputNumber
+                                , HP.min 1.0
+                                , HP.class_ BS.formControl
+                                , HE.onValueChange $ fromString >=> (Just <<< ChangePerPage <<< A.perPage)
+                                , HP.value (show s.perPage)
+                                ]
+                            ]
+                        , HH.button
+                            [ HP.classes [ BS.btn, BS.btnPrimary ]
+                            , HE.onClick $ preventDefault ApplyPerPageChange
+                            ]
+                            [ HH.text "Apply" ]
+                        ]
+                    ]
                 ]
             ]
         ]
@@ -165,6 +192,10 @@ component =
       H.modify_ _ { localHostPort = port }
     Select option -> H.modify_ _ { localSelection = option }
     PreventDefault event action -> Utils.preventDefault event action handleAction
+    ChangePerPage perPage -> H.modify_ _ { perPage = perPage }
+    ApplyPerPageChange -> do
+      perPage <- H.gets _.perPage
+      H.raise $ PerPageChanged perPage
 
   preventDefault :: Action -> ME.MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (ME.toEvent event) $ Just action

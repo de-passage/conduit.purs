@@ -4,9 +4,10 @@ import Prelude
 import API as API
 import Classes as C
 import Control.Parallel (parSequence_)
-import Data.Article (Article)
+import Data.Article as A
 import Data.Const (Const)
-import Data.GlobalState (WithCommon)
+import Data.DefaultPreventable (class DefaultPreventable, defaultPreventDefaults)
+import Data.GlobalState (WithCommon, Paginated)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (unwrap)
 import Data.Tag (Tag)
@@ -34,7 +35,7 @@ type Slot
   = H.Slot Query Output
 
 type Input
-  = Record (WithCommon ())
+  = Record (WithCommon ( perPage :: A.PerPage ))
 
 data Tab
   = GlobalFeed
@@ -43,10 +44,12 @@ data Tab
 
 type State
   = Record
-      ( WithCommon
-          ( tags :: LoadState (Array Tag)
-          , articles :: LoadState (Array Article)
-          , selected :: Tab
+      ( Paginated
+          ( WithCommon
+              ( tags :: LoadState (Array Tag)
+              , articles :: LoadState A.ArticleList
+              , selected :: Tab
+              )
           )
       )
 
@@ -55,7 +58,12 @@ data Action
   | Receive Input
   | TabSelected Tab
   | PreventDefault Event (Maybe Action)
-  | Favorited Article
+  | Favorited A.Article
+  | RequestNewPage A.PageNumber A.Offset
+
+instance defaultsPreventableAction :: DefaultPreventable Action where
+  action = PreventDefault
+  preventDefaults = defaultPreventDefaults
 
 type ChildSlots
   = ()
@@ -75,21 +83,26 @@ component =
     }
 
 initialState :: Input -> State
-initialState { currentUser, urls } =
+initialState { currentUser, urls, perPage } =
   { articles: Loading
   , tags: Loading
   , selected: maybe GlobalFeed PersonalFeed currentUser
   , currentUser
   , urls
+  , perPage
+  , pageNumber: A.emptyPageNumber
   }
 
 render :: forall m. State -> HH.ComponentHTML Action ChildSlots m
 render state =
   let
-    articles = case state.articles of
-      Loading -> [ HH.text "Loading" ]
-      Loaded as -> map (ArticlePreview.render <*> preventDefault <<< Favorited) as
-      LoadError error -> [ Utils.errorDisplay error ]
+    articles =
+      ArticlePreview.renderArticleList
+        (A.mkDisplaySettings state.pageNumber state.perPage)
+        (\a b -> preventDefault $ RequestNewPage a b)
+        state.articles
+        $ preventDefault
+        <<< Favorited
 
     tagList = case state.tags of
       Loading -> HH.div_ []
@@ -148,11 +161,9 @@ render state =
           [ HH.div [ HP.class_ BS.row ]
               [ HH.div [ HP.class_ BS.colMd9 ]
                   [ HH.div [ HP.class_ C.feedToggle ]
-                      ( [ HH.ul [ HP.classes [ BS.nav, BS.navPills, C.outlineActive ] ]
-                            tabs
-                        ]
-                          <> articles
-                      )
+                      [ HH.ul [ HP.classes [ BS.nav, BS.navPills, C.outlineActive ] ] tabs
+                      , articles
+                      ]
                   ]
               , HH.div [ HP.class_ BS.colMd3 ]
                   [ tagList
@@ -186,31 +197,36 @@ handleAction ∷
   H.HalogenM State Action ChildSlots Output m Unit
 handleAction = case _ of
   Init -> do
-    { currentUser, urls } <- H.get
-    handleAction (Receive { currentUser, urls })
-  Receive { currentUser, urls } ->
+    { currentUser, urls, perPage } <- H.get
+    handleAction (Receive { currentUser, urls, perPage })
+  Receive { currentUser, urls, perPage } -> do
+    pageNumber <- H.gets _.pageNumber
     let
-      loadArts = maybe (loadArticles urls Nothing) (loadPersonal urls) currentUser
-    in
-      do
-        parSequence_ [ loadArts, loadTags urls ]
+      loadArts =
+        maybe
+          (loadArticles urls A.noOffset pageNumber perPage Nothing)
+          (loadPersonal urls A.noOffset pageNumber perPage)
+          currentUser
+    parSequence_ [ loadArts, loadTags urls ]
   TabSelected tab -> do
-    { selected, currentUser, urls } <- H.get
+    { selected, currentUser, urls, perPage } <- H.get
+    let
+      token = currentUser <#> _.token
     case tab of
       TagFeed tag -> case selected of
         TagFeed currentTag ->
           if tag /= currentTag then
-            loadTagged urls tag (currentUser <#> _.token)
+            loadTagged urls A.noOffset A.emptyPageNumber perPage tag token
           else
             pure unit
-        _ -> loadTagged urls tag (currentUser <#> _.token)
+        _ -> loadTagged urls A.noOffset A.emptyPageNumber perPage tag token
       GlobalFeed -> case selected of
         GlobalFeed -> pure unit
         _ -> do
-          loadGlobal urls (currentUser <#> _.token)
+          loadGlobal urls A.noOffset A.emptyPageNumber perPage token
       PersonalFeed u -> case selected of
         PersonalFeed _ -> pure unit
-        _ -> loadPersonal urls u
+        _ -> loadPersonal urls A.noOffset A.emptyPageNumber perPage u
   Favorited article -> do
     { currentUser, urls } <- H.get
     let
@@ -220,23 +236,39 @@ handleAction = case _ of
           Utils.favorite urls article tok updateArticles _.articles
   PreventDefault event action -> do
     Utils.preventDefault event action handleAction
+  RequestNewPage pn offset -> do
+    { selected, urls, currentUser, perPage } <- H.get
+    let
+      token = currentUser <#> _.token
+    case selected of
+      TagFeed tag -> loadTagged urls offset pn perPage tag token
+      GlobalFeed -> loadGlobal urls offset pn perPage token
+      PersonalFeed u -> loadPersonal urls offset pn perPage u
   where
+  updateArticles :: LoadState A.ArticleList -> State -> State
   updateArticles v = _ { articles = v }
 
-  loadArticles urls token = load (API.getArticles urls token) updateArticles
+  loadArticles urls offset pn pp token =
+    load (API.getArticles urls offset pp token)
+      (\v -> _ { articles = v, pageNumber = pn })
 
-  loadGlobal urls token = load (API.getArticles urls token) (\v -> _ { articles = v, selected = GlobalFeed })
+  loadGlobal urls offset pn pp token =
+    load (API.getArticles urls offset pp token)
+      (\v -> _ { articles = v, selected = GlobalFeed, pageNumber = pn })
 
-  loadTagged urls tag token = load (API.getTaggedArticles urls tag token) (\v -> _ { articles = v, selected = TagFeed tag })
+  loadTagged urls offset pn pp tag token =
+    load (API.getTaggedArticles urls tag offset pp token)
+      (\v -> _ { articles = v, selected = TagFeed tag, pageNumber = pn })
 
   loadTags urls = load (API.getTags urls) (\v -> _ { tags = v })
 
-  loadPersonal urls user =
-    load (API.getFeed urls user.token)
+  loadPersonal urls off pn pp user =
+    load (API.getFeed urls pp off user.token)
       ( \v ->
           _
             { articles = v
             , selected = PersonalFeed user
             , currentUser = Just user
+            , pageNumber = pn
             }
       )

@@ -23,7 +23,7 @@ import API.Utils as Utils
 import Affjax (request, printError) as AJ
 import Affjax.StatusCode (StatusCode(..)) as AJ
 import Data.Argonaut as A
-import Data.Article (Slug, Article)
+import Data.Article (Article, ArticleList(..), Offset, PerPage, Slug)
 import Data.Comment (Comment)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
@@ -53,25 +53,56 @@ request r = do
 getArticle :: UrlRepository -> Slug -> Maybe Token -> Aff (Response Article)
 getArticle url s t = (request $ E.article url s t) <%> _.article
 
-getArticles :: UrlRepository -> Maybe Token -> Aff (Response (Array Article))
-getArticles url token = (request $ E.allArticles url token) <%> _.articles
-
-getUserArticles :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
-getUserArticles url user token =
+getArticles :: UrlRepository -> Offset -> PerPage -> Maybe Token -> Aff (Response ArticleList)
+getArticles url offset perPage token =
   ( request
-      $ E.articles url (Url.defaultArticleOptions { author = Just user }) token
+      $ E.articles url
+          (Url.defaultArticleOptions { offset = Just offset, limit = Just perPage })
+          token
   )
-    <%> _.articles
+    <%> ArticleList
 
-getTaggedArticles :: UrlRepository -> Tag -> Maybe Token -> Aff (Response (Array Article))
-getTaggedArticles url tag token =
+getUserArticles :: UrlRepository -> Username -> Offset -> PerPage -> Maybe Token -> Aff (Response ArticleList)
+getUserArticles url user offset perPage token =
   ( request
-      $ E.articles url (Url.defaultArticleOptions { tag = Just tag }) token
+      $ E.articles url
+          ( Url.defaultArticleOptions
+              { author = Just user
+              , offset = Just offset
+              , limit = Just perPage
+              }
+          )
+          token
   )
-    <%> _.articles
+    <%> ArticleList
 
-getFavorites :: UrlRepository -> Username -> Maybe Token -> Aff (Response (Array Article))
-getFavorites url user token = (request $ E.articles url (Url.defaultArticleOptions { favorited = Just user }) token) <%> _.articles
+getTaggedArticles :: UrlRepository -> Tag -> Offset -> PerPage -> Maybe Token -> Aff (Response ArticleList)
+getTaggedArticles url tag offset perPage token =
+  ( request
+      $ E.articles url
+          ( Url.defaultArticleOptions
+              { tag = Just tag
+              , offset = Just offset
+              , limit = Just perPage
+              }
+          )
+          token
+  )
+    <%> ArticleList
+
+getFavorites :: UrlRepository -> Username -> Offset -> PerPage -> Maybe Token -> Aff (Response ArticleList)
+getFavorites url user offset perPage token =
+  ( request
+      $ E.articles url
+          ( Url.defaultArticleOptions
+              { favorited = Just user
+              , offset = Just offset
+              , limit = Just perPage
+              }
+          )
+          token
+  )
+    <%> ArticleList
 
 getProfile :: UrlRepository -> Username -> Maybe Token -> Aff (Response Profile)
 getProfile url u token = (request $ E.profile url u token) <%> _.profile
@@ -82,8 +113,16 @@ getTags url = (request $ E.tags url) <%> _.tags
 getComments :: UrlRepository -> Slug -> Maybe Token -> Aff (Response (Array Comment))
 getComments url slug token = (request $ E.comments url slug token) <%> _.comments
 
-getFeed :: UrlRepository -> Token -> Aff (Response (Array Article))
-getFeed url token = (request $ E.feed url token) <%> _.articles
+getFeed :: UrlRepository -> PerPage -> Offset -> Token -> Aff (Response ArticleList)
+getFeed url perPage offset token =
+  ( request
+      $ E.limitedFeed url
+          { limit: Just perPage
+          , offset: Just offset
+          }
+          token
+  )
+    <%> ArticleList
 
 loginR :: UrlRepository -> { email :: String, password :: String } -> Aff (Response User)
 loginR url user = (request $ E.login url { user }) <%> _.user
