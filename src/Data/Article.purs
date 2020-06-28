@@ -28,14 +28,14 @@ module Data.Article
   , emptyPageNumber
   , _pageNumber
   , noOffset
-  , mapPages
+  , foldPages
   , Page(..)
   , Distance(..)
+  , fromPageNumber
   ) where
 
 import Prelude
 import Data.Argonaut (class DecodeJson, class EncodeJson)
-import Data.Array (snoc)
 import Data.Lens (Forget, Lens', over, to, traversed, view)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -204,12 +204,12 @@ emptyPageNumber = PageNumber 0
 noOffset :: Offset
 noOffset = Offset 0
 
-mapPages :: forall a. ArticleDisplaySettings -> (Page -> a) -> Array a
-mapPages (ArticleDisplaySettings settings) = go 0 [] settings.pageNumber settings.perPage settings.articleCount
+foldPages :: forall a. ArticleDisplaySettings -> a -> (a -> Page -> a) -> a
+foldPages (ArticleDisplaySettings settings) accum = go 0 accum settings.pageNumber settings.perPage settings.articleCount
   where
   go i acc p1@(PageNumber pn) p2@(PerPage pp) a@(ArticleCount ac) f
-    | i == last = acc `snoc` f (mkPage i p2)
-    | otherwise = go (i + 1) (acc `snoc` f (mkPage i p2)) p1 p2 a f
+    | i == last = f acc (mkPage i p2)
+    | otherwise = go (i + 1) (f acc (mkPage i p2)) p1 p2 a f
 
   last = fromPageNumber $ computeLast settings.articleCount settings.perPage
 
@@ -222,7 +222,7 @@ mapPages (ArticleDisplaySettings settings) = go 0 [] settings.pageNumber setting
       if i == current then
         CurrentPage pn
       else
-        OtherPage pn (offset pn pp) (Distance $ abs $ current - i)
+        OtherPage pn (offset pn pp) (Distance $ abs $ current - i) (Distance $ if i < current then i else (last - i))
 
 newtype Distance
   = Distance Int
@@ -231,4 +231,4 @@ derive instance newtypeDistance :: Newtype Distance _
 
 data Page
   = CurrentPage PageNumber
-  | OtherPage PageNumber Offset Distance
+  | OtherPage PageNumber Offset Distance Distance
