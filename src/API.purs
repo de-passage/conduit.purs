@@ -113,8 +113,16 @@ getTags url = (request $ E.tags url) <%> _.tags
 getComments :: UrlRepository -> Slug -> Maybe Token -> Aff (Response (Array Comment))
 getComments url slug token = (request $ E.comments url slug token) <%> _.comments
 
-getFeed :: UrlRepository -> Token -> Aff (Response ArticleList)
-getFeed url token = (request $ E.feed url token) <%> ArticleList
+getFeed :: UrlRepository -> PerPage -> Offset -> Token -> Aff (Response ArticleList)
+getFeed url perPage offset token =
+  ( request
+      $ E.limitedFeed url
+          { limit: Just perPage
+          , offset: Just offset
+          }
+          token
+  )
+    <%> ArticleList
 
 loginR :: UrlRepository -> { email :: String, password :: String } -> Aff (Response User)
 loginR url user = (request $ E.login url { user }) <%> _.user
