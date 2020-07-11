@@ -55,7 +55,7 @@ type Input
   = Record
       ( url :: String
       , user :: Maybe User
-      , repo :: Urls.UrlRepository
+      , settings :: S.UrlSettings
       , perPage :: A.PerPage
       )
 
@@ -97,10 +97,10 @@ component =
     }
 
 initialState :: Input -> State
-initialState { url, user, repo, perPage } =
+initialState { url, user, settings, perPage } =
   { currentRoute: initialRoute
   , currentUser: user
-  , urls: repo
+  , urls: settings.repo
   , perPage
   }
   where

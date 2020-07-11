@@ -8,7 +8,7 @@ import Data.Article as A
 import Data.Const (Const)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..))
-import Data.Root (Root(..))
+import Data.Root (Port(..), Root(..))
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect)
 import Halogen as H
@@ -53,7 +53,7 @@ type State
   = Record
       ( urls :: UrlRepository
       , customRootText :: String
-      , localHostPort :: Int
+      , localHostPort :: Port
       , localSelection :: Option
       , perPage :: A.PerPage
       )
@@ -77,9 +77,9 @@ component =
   initialState { urls, perPage } =
     let
       (customRootText /\ localHostPort /\ localSelection) = case urls.root of
-        PublicApi -> (show PublicApi) /\ 8080 /\ Public
+        PublicApi -> (show PublicApi) /\ (Port 8080) /\ Public
         LocalHost port -> (show PublicApi) /\ port /\ Localhost
-        CustomBackend url -> url /\ 8080 /\ Custom
+        CustomBackend url -> url /\ (Port 8080) /\ Custom
     in
       { urls
       , customRootText
@@ -189,7 +189,7 @@ component =
     ChangeCustomRootText s -> do
       H.modify_ _ { customRootText = s }
     ChangeLocalhostPort port -> do
-      H.modify_ _ { localHostPort = port }
+      H.modify_ _ { localHostPort = Port port }
     Select option -> H.modify_ _ { localSelection = option }
     PreventDefault event action -> Utils.preventDefault event action handleAction
     ChangePerPage perPage -> H.modify_ _ { perPage = perPage }
