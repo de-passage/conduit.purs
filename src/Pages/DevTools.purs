@@ -7,7 +7,7 @@ import Data.Array (cons)
 import Data.Article as A
 import Data.Const (Const)
 import Data.Int (fromString)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Root (Port(..), Root(..))
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect)
@@ -16,12 +16,16 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Storage (UrlSettings)
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent as ME
 
 type Input
-  = Record ( urls :: UrlRepository, perPage :: A.PerPage )
+  = Record
+      ( urls :: UrlSettings
+      , perPage :: A.PerPage
+      )
 
 data Output
   = RootChanged Root
@@ -74,14 +78,14 @@ component =
     }
   where
   initialState :: Input -> State
-  initialState { urls, perPage } =
+  initialState { urls: { repo, lastUrl, lastPort }, perPage } =
     let
-      (customRootText /\ localHostPort /\ localSelection) = case urls.root of
-        PublicApi -> (show PublicApi) /\ (Port 8080) /\ Public
-        LocalHost port -> (show PublicApi) /\ port /\ Localhost
-        CustomBackend url -> url /\ (Port 8080) /\ Custom
+      (customRootText /\ localHostPort /\ localSelection) = case repo.root of
+        PublicApi -> fromMaybe (show PublicApi) lastUrl /\ fromMaybe (Port 8080) lastPort /\ Public
+        LocalHost port -> fromMaybe (show PublicApi) lastUrl /\ port /\ Localhost
+        CustomBackend url -> url /\ fromMaybe (Port 8080) lastPort /\ Custom
     in
-      { urls
+      { urls: repo
       , customRootText
       , localSelection
       , localHostPort

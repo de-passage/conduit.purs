@@ -5,12 +5,14 @@ import Data.Article (PageNumber, PerPage)
 import Data.Maybe (Maybe)
 import Data.User (User)
 import Router (Route)
+import Storage (UrlSettings)
 
 type State
   = Record
-      ( WithCommon
+      ( WithUser
           ( currentRoute :: Route
           , perPage :: PerPage
+          , urlSettings :: UrlSettings
           )
       )
 

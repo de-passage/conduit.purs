@@ -1,7 +1,8 @@
-module Data.Root (Root(..), Port(..)) where
+module Data.Root (Root(..), Port(..), port, rootUrl) where
 
 import Prelude
 import Data.Argonaut as A
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 
 newtype Port
@@ -22,5 +23,15 @@ data Root
 
 instance showRoot :: Show Root where
   show PublicApi = "https://conduit.productionready.io/api/"
-  show (LocalHost port) = "http://localhost:" <> show port <> "/api/"
+  show (LocalHost p) = "http://localhost:" <> show p <> "/api/"
   show (CustomBackend url) = url
+
+port :: Root -> Maybe Port
+port (LocalHost p) = Just p
+
+port _ = Nothing
+
+rootUrl :: Root -> Maybe String
+rootUrl (CustomBackend u) = Just u
+
+rootUrl _ = Nothing
