@@ -9,6 +9,7 @@ import Data.Const (Const)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Root (Port(..), Root(..))
+import Data.String.CodeUnits as SC
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect)
 import Halogen as H
@@ -188,7 +189,7 @@ component =
         root = case localSelection of
           Public -> PublicApi
           Localhost -> LocalHost localHostPort
-          Custom -> CustomBackend customRootText
+          Custom -> CustomBackend (addTrailingSlash customRootText)
       H.raise $ RootChanged root
     ChangeCustomRootText s -> do
       H.modify_ _ { customRootText = s }
@@ -200,6 +201,13 @@ component =
     ApplyPerPageChange -> do
       perPage <- H.gets _.perPage
       H.raise $ PerPageChanged perPage
+    where
+    addTrailingSlash :: String -> String
+    addTrailingSlash s =
+      if SC.charAt (SC.length s - 1) s == Just '/' then
+        s
+      else
+        s <> "/"
 
   preventDefault :: Action -> ME.MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (ME.toEvent event) $ Just action
