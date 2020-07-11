@@ -32,6 +32,7 @@ module Data.Article
   , Page(..)
   , Distance(..)
   , fromPageNumber
+  , pageCount
   ) where
 
 import Prelude
@@ -203,6 +204,9 @@ emptyPageNumber = PageNumber 0
 
 noOffset :: Offset
 noOffset = Offset 0
+
+pageCount :: ArticleDisplaySettings -> Int
+pageCount (ArticleDisplaySettings s) = let (PageNumber n) = computeLast s.articleCount s.perPage in n + 1
 
 foldPages :: forall a. ArticleDisplaySettings -> a -> (a -> Page -> a) -> a
 foldPages (ArticleDisplaySettings settings) accum = go 0 accum settings.pageNumber settings.perPage settings.articleCount

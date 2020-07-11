@@ -2,11 +2,12 @@ module App where
 
 import Prelude
 import API.Url as Urls
+import Control.Alt ((<|>))
 import Data.Article as A
 import Data.Either as E
 import Data.GlobalState as GlobalState
 import Data.Maybe (Maybe(..))
-import Data.Root (Root)
+import Data.Root (Root, port, rootUrl)
 import Data.Symbol (SProxy(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff)
@@ -55,7 +56,7 @@ type Input
   = Record
       ( url :: String
       , user :: Maybe User
-      , repo :: Urls.UrlRepository
+      , settings :: S.UrlSettings
       , perPage :: A.PerPage
       )
 
@@ -97,10 +98,10 @@ component =
     }
 
 initialState :: Input -> State
-initialState { url, user, repo, perPage } =
+initialState { url, user, settings, perPage } =
   { currentRoute: initialRoute
   , currentUser: user
-  , urls: repo
+  , urlSettings: settings
   , perPage
   }
   where
@@ -120,28 +121,28 @@ render state =
     ]
 
 showPage :: forall m. MonadAff m => Route -> State -> H.ComponentHTML Action ChildSlots m
-showPage r s@{ urls, currentUser, currentRoute, perPage } = case r of
+showPage r s@{ urlSettings, currentUser, currentRoute, perPage } = case r of
   Home -> home
   Login ->
     HH.slot _authentication unit Pages.Authentication.component
-      { urls, action: Pages.Authentication.Login }
+      { urls: urlSettings.repo, action: Pages.Authentication.Login }
       handleAuthenticationMessages
   Register ->
     HH.slot _authentication unit Pages.Authentication.component
-      { urls, action: Pages.Authentication.Register }
+      { urls: urlSettings.repo, action: Pages.Authentication.Register }
       handleAuthenticationMessages
   Settings -> authenticated settings home
   NewArticle -> authenticated newArticle home
   EditArticle slug -> authenticated (editArticle slug) home
   ShowArticle slug ->
     HH.slot _showArticle unit Pages.Article.component
-      { slug, currentUser, urls }
+      { slug, currentUser, urls: urlSettings.repo }
       handleArticleMessages
   Profile username ->
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Authored username)
       , currentUser
-      , urls
+      , urls: urlSettings.repo
       , perPage
       }
       handleProfileMessages
@@ -149,12 +150,17 @@ showPage r s@{ urls, currentUser, currentRoute, perPage } = case r of
     HH.slot _profile unit Pages.Profile.component
       { page: (Pages.Profile.Favorited username)
       , currentUser
-      , urls
+      , urls: urlSettings.repo
       , perPage
       }
       handleProfileMessages
   NotFound url -> HH.div_ [ HH.text $ "Oops! It looks like the page you requested (" <> url <> ") doesn't exist!" ]
-  DevTools -> HH.slot _devTools unit Pages.DevTools.component { urls, perPage } handleDevToolMessages
+  DevTools ->
+    HH.slot _devTools unit Pages.DevTools.component
+      { urls: urlSettings
+      , perPage
+      }
+      handleDevToolMessages
   where
   authenticated a b = case currentUser of
     Just user -> a user
@@ -162,16 +168,16 @@ showPage r s@{ urls, currentUser, currentRoute, perPage } = case r of
 
   settings user =
     HH.slot _settings unit Pages.Settings.component
-      { currentUser: user, urls }
+      { currentUser: user, urls: urlSettings.repo }
       handleSettingsMessages
 
-  home = HH.slot _homePage unit Pages.Home.component { urls, currentUser, perPage } handleHomePageMessages
+  home = HH.slot _homePage unit Pages.Home.component { urls: urlSettings.repo, currentUser, perPage } handleHomePageMessages
 
   newArticle user =
     HH.slot _newArticle
       unit
       Pages.Edition.component
-      { currentAction: Pages.Edition.New, currentUser: user, urls }
+      { currentAction: Pages.Edition.New, currentUser: user, urls: urlSettings.repo }
       handleEditionMessages
 
   editArticle slug user =
@@ -179,7 +185,7 @@ showPage r s@{ urls, currentUser, currentRoute, perPage } = case r of
       _editArticle
       unit
       Pages.Edition.component
-      { currentAction: Pages.Edition.Edit slug, currentUser: user, urls }
+      { currentAction: Pages.Edition.Edit slug, currentUser: user, urls: urlSettings.repo }
       handleEditionMessages
 
 handleAction ∷ forall o m. MonadEffect m => Action → H.HalogenM State Action ChildSlots o m Unit
@@ -202,7 +208,14 @@ handleAction = case _ of
     H.liftEffect do
       S.saveRepository newRepo
       S.deleteStoredUser
-    H.modify_ _ { currentUser = Nothing, urls = newRepo }
+    st <- H.get
+    let
+      newSettings =
+        { repo: newRepo
+        , lastPort: port root <|> st.urlSettings.lastPort
+        , lastUrl: rootUrl root <|> st.urlSettings.lastUrl
+        }
+    H.modify_ _ { currentUser = Nothing, urlSettings = newSettings }
   ChangePerPage perPage -> do
     current <- H.gets _.perPage
     if current /= perPage then do

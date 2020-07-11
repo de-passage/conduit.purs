@@ -2,10 +2,11 @@ module Storage
   ( deleteStoredUser
   , storeUser
   , retrieveUser
-  , retrieveRepository
+  , retrieveUrlSettings
   , saveRepository
   , savePerPage
   , retrievePerPage
+  , UrlSettings
   ) where
 
 import Prelude
@@ -17,12 +18,18 @@ import Data.Article (PerPage, perPage)
 import Data.Either (hush)
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Root (Root(..))
+import Data.Root (Root(..), Port)
 import Data.User (User)
 import Effect (Effect)
 import Web.HTML (window) as DOM
 import Web.HTML.Window (localStorage) as DOM
 import Web.Storage.Storage (Storage, getItem, removeItem, setItem)
+
+type UrlSettings
+  = { repo :: UrlRepository
+    , lastUrl :: Maybe String
+    , lastPort :: Maybe Port
+    }
 
 userKey :: String
 userKey = "conduit-user"
@@ -32,6 +39,12 @@ urlRepoKey = "conduit-url-repository"
 
 perPageKey :: String
 perPageKey = "conduit-url-articles-per-page"
+
+lastUrlKey :: String
+lastUrlKey = "conduit-last-url"
+
+lastPortKey :: String
+lastPortKey = "conduit-last-port"
 
 localStorage :: Effect Storage
 localStorage = do
@@ -57,11 +70,17 @@ retrieveUser = do
 deleteStoredUser :: Effect Unit
 deleteStoredUser = localStorage >>= removeItem userKey
 
-retrieveRepository :: Effect UrlRepository
-retrieveRepository = do
+retrieveUrlSettings :: Effect UrlSettings
+retrieveUrlSettings = do
   storage <- localStorage
-  value <- getItem urlRepoKey storage
-  pure $ fromMaybe (Urls.repository PublicApi) (value >>= deserialize)
+  repo <- getItem urlRepoKey storage
+  lastPort <- getItem lastPortKey storage
+  lastUrl <- getItem lastUrlKey storage
+  pure
+    $ { repo: fromMaybe (Urls.repository PublicApi) (repo >>= deserialize)
+      , lastUrl: lastUrl >>= fromStored
+      , lastPort: lastPort >>= fromStored
+      }
   where
   deserialize :: String -> Maybe UrlRepository
   deserialize string = do
@@ -74,7 +93,7 @@ retrieveRepository = do
 
   tryLocalHost :: A.Json -> Maybe Root
   tryLocalHost json = do
-    l <- hush $ A.decodeJson json :: Maybe { localhost :: Int }
+    l <- hush $ A.decodeJson json :: Maybe { localhost :: Port }
     pure $ LocalHost l.localhost
 
   tryCustom :: A.Json -> Maybe Root
@@ -82,10 +101,23 @@ retrieveRepository = do
     c <- hush $ A.decodeJson json :: Maybe { custom :: String }
     pure (CustomBackend c.custom)
 
+  fromStored :: forall a. A.DecodeJson a => String -> Maybe a
+  fromStored s = do
+    p <- hush $ A.jsonParser s
+    hush $ A.decodeJson p
+
 saveRepository :: UrlRepository -> Effect Unit
 saveRepository repo = do
   storage <- localStorage
-  setItem urlRepoKey (serialize repo.root) storage
+  let
+    serialized = serialize repo.root
+  setItem urlRepoKey serialized.repo storage
+  case serialized.port of
+    Just port -> setItem lastPortKey port storage
+    _ -> pure unit
+  case serialized.url of
+    Just url -> setItem lastUrlKey url storage
+    _ -> pure unit
   where
   public = "public"
 
@@ -93,12 +125,20 @@ saveRepository repo = do
 
   custom s = { custom: s }
 
-  serialize :: Root -> String
-  serialize PublicApi = public
+  serialize :: Root -> { port :: Maybe String, repo :: String, url :: Maybe String }
+  serialize PublicApi = { repo: public, port: Nothing, url: Nothing }
 
-  serialize (LocalHost port) = A.stringify $ A.encodeJson $ localhost port
+  serialize (LocalHost port) =
+    { repo: A.stringify $ A.encodeJson $ localhost port
+    , port: Just $ A.stringify $ A.encodeJson port
+    , url: Nothing
+    }
 
-  serialize (CustomBackend addr) = A.stringify $ A.encodeJson $ custom addr
+  serialize (CustomBackend addr) =
+    { repo: A.stringify $ A.encodeJson $ custom addr
+    , port: Nothing
+    , url: Just $ A.stringify $ A.encodeJson addr
+    }
 
 savePerPage :: PerPage -> Effect Unit
 savePerPage i = localStorage >>= setItem perPageKey (show i)

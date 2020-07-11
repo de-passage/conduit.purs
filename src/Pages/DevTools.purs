@@ -7,8 +7,9 @@ import Data.Array (cons)
 import Data.Article as A
 import Data.Const (Const)
 import Data.Int (fromString)
-import Data.Maybe (Maybe(..))
-import Data.Root (Root(..))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Root (Port(..), Root(..))
+import Data.String.CodeUnits as SC
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect)
 import Halogen as H
@@ -16,12 +17,16 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
+import Storage (UrlSettings)
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent as ME
 
 type Input
-  = Record ( urls :: UrlRepository, perPage :: A.PerPage )
+  = Record
+      ( urls :: UrlSettings
+      , perPage :: A.PerPage
+      )
 
 data Output
   = RootChanged Root
@@ -53,7 +58,7 @@ type State
   = Record
       ( urls :: UrlRepository
       , customRootText :: String
-      , localHostPort :: Int
+      , localHostPort :: Port
       , localSelection :: Option
       , perPage :: A.PerPage
       )
@@ -74,14 +79,14 @@ component =
     }
   where
   initialState :: Input -> State
-  initialState { urls, perPage } =
+  initialState { urls: { repo, lastUrl, lastPort }, perPage } =
     let
-      (customRootText /\ localHostPort /\ localSelection) = case urls.root of
-        PublicApi -> (show PublicApi) /\ 8080 /\ Public
-        LocalHost port -> (show PublicApi) /\ port /\ Localhost
-        CustomBackend url -> url /\ 8080 /\ Custom
+      (customRootText /\ localHostPort /\ localSelection) = case repo.root of
+        PublicApi -> fromMaybe (show PublicApi) lastUrl /\ fromMaybe (Port 8080) lastPort /\ Public
+        LocalHost port -> fromMaybe (show PublicApi) lastUrl /\ port /\ Localhost
+        CustomBackend url -> url /\ fromMaybe (Port 8080) lastPort /\ Custom
     in
-      { urls
+      { urls: repo
       , customRootText
       , localSelection
       , localHostPort
@@ -184,18 +189,25 @@ component =
         root = case localSelection of
           Public -> PublicApi
           Localhost -> LocalHost localHostPort
-          Custom -> CustomBackend customRootText
+          Custom -> CustomBackend (addTrailingSlash customRootText)
       H.raise $ RootChanged root
     ChangeCustomRootText s -> do
       H.modify_ _ { customRootText = s }
     ChangeLocalhostPort port -> do
-      H.modify_ _ { localHostPort = port }
+      H.modify_ _ { localHostPort = Port port }
     Select option -> H.modify_ _ { localSelection = option }
     PreventDefault event action -> Utils.preventDefault event action handleAction
     ChangePerPage perPage -> H.modify_ _ { perPage = perPage }
     ApplyPerPageChange -> do
       perPage <- H.gets _.perPage
       H.raise $ PerPageChanged perPage
+    where
+    addTrailingSlash :: String -> String
+    addTrailingSlash s =
+      if SC.charAt (SC.length s - 1) s == Just '/' then
+        s
+      else
+        s <> "/"
 
   preventDefault :: Action -> ME.MouseEvent -> Maybe Action
   preventDefault action event = Just $ PreventDefault (ME.toEvent event) $ Just action

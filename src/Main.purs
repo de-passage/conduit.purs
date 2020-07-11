@@ -31,20 +31,20 @@ main :: Effect Unit
 main = do
   url <- DOM.window >>= DOM.location >>= DOM.hash <#> dropHost
   decoded <- S.retrieveUser
-  repo <- S.retrieveRepository
+  settings <- S.retrieveUrlSettings
   perPage <- S.retrievePerPage
   HA.runHalogenAff do
     body <- HA.awaitBody
     user <-
       decoded
         # maybe (pure Nothing) \{ token } -> do
-            req <- API.request $ API.currentUser repo token
+            req <- API.request $ API.currentUser settings.repo token
             case req of
               Left err -> do
                 Console.log $ intercalate "\n" $ R.fromError err
                 pure $ Nothing :: Aff (Maybe User.User)
               Right user -> pure $ Just user.user :: Aff (Maybe User.User)
-    io <- runUI App.component { url, user, repo, perPage } body
+    io <- runUI App.component { url, user, settings, perPage } body
     CR.runProcess (hashChangeProducer CR.$$ hashChangeConsumer io.query)
 
 -- taken from the Halogen examples 

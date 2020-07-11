@@ -3,7 +3,7 @@ module Templates.ArticlePreview where
 import Prelude
 import Classes as C
 import Data.Array (snoc)
-import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Distance(..), Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, foldPages, fromArticles, fromPageNumber, isFirst, isLast, lastPage, nextPage, previousPage, toOffset)
+import Data.Article (Article, ArticleCount, ArticleDisplaySettings, ArticleList, Distance(..), Offset, Page(..), PageNumber, _articlesCount, _pageNumber, firstPage, foldPages, fromArticles, fromPageNumber, isFirst, isLast, lastPage, nextPage, pageCount, previousPage, toOffset)
 import Data.DefaultPreventable (class DefaultPreventable, preventDefaults)
 import Data.Lens (view, (^.))
 import Data.Maybe (Maybe(..))
@@ -62,7 +62,14 @@ renderArticleList mkSettings loadArts list favorite = case list of
   LoadError error -> Utils.errorDisplay error
   where
   pagination :: ArticleDisplaySettings -> HH.HTML w i
-  pagination settings = HH.nav_ [ HH.ul [ HP.class_ BS.pagination ] (first settings <> listPages settings loadArts <> last settings) ]
+  pagination settings =
+    if pageCount settings > 1 then
+      HH.nav_
+        [ HH.ul [ HP.class_ BS.pagination ]
+            (first settings <> listPages settings loadArts <> last settings)
+        ]
+    else
+      HH.div_ []
 
   item :: ArticleDisplaySettings -> String -> (PageNumber -> Offset -> MouseEvent -> Maybe i) -> Boolean -> HH.HTML w i
   item settings text action isActive =
