@@ -11,15 +11,20 @@ import Data.Const (Const)
 import Data.Either (Either(..))
 import Data.GlobalState (WithUrls)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.String (toLower, trim)
+import Data.String.Regex (regex, replace)
+import Data.String.Regex.Flags (global)
 import Data.Symbol (SProxy(..))
 import Data.User (User)
 import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class.Console (log)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.Themes.Bootstrap4 as BS
 import SimpleMDE as SimpleMDE
+import Unsafe.Coerce (unsafeCoerce)
 import Utils as Utils
 import Web.Event.Internal.Types (Event)
 import Web.UIEvent.MouseEvent (toEvent)
@@ -207,7 +212,19 @@ handleAction = case _ of
   ChangeDescription description -> H.modify_ _ { article { description = description } }
   ChangeTag tag -> H.modify_ _ { currentTag = tag }
   ChangeTitle title -> H.modify_ _ { article { title = title } }
-  AddTag -> H.modify_ \s -> s { article { tagList = add s.currentTag s.article.tagList }, currentTag = "" }
+  AddTag -> do
+    current <- H.gets _.currentTag
+    let
+      r = regex "\\s+" global
+    case r of
+      Left err -> log err
+      Right r' -> do
+        let
+          newTag = replace r' "-" $ trim $ toLower current
+        if newTag /= "" then
+          H.modify_ \s -> s { article { tagList = add newTag s.article.tagList }, currentTag = "" }
+        else
+          H.modify_ _ { currentTag = "" }
   RemoveTag tag -> H.modify_ \s -> s { article { tagList = remove tag s.article.tagList } }
   Publish -> do
     H.modify_ _ { errorMessages = Nothing, buttonStatus = Inactive }
