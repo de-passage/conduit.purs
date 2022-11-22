@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/de-passage/conduit.purs#readme",
   "dependencies": {
-    "marked": "^1.1.0",
+    "marked": "^4.0.10",
     "purs-loader": "^3.7.1",
     "simplemde": "^1.11.2",
     "webpack": "^4.43.0",
